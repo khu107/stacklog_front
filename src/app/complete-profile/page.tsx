@@ -14,13 +14,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { completeRegistration } from "@/lib/api/auth";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function CompleteProfilePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { login } = useAuthStore();
 
-  const [token, setToken] = useState<string | null>(null);
-  const [email, setEmail] = useState<string>("");
+  const [code, setCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -31,35 +32,22 @@ export default function CompleteProfilePage() {
     introduction: "",
   });
 
-  // JWT 토큰에서 이메일 추출 함수
-  const extractEmailFromToken = (token: string) => {
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.email || "";
-    } catch (error) {
-      console.error("토큰 디코딩 실패:", error);
-      return "";
-    }
-  };
-
+  // 🆕 URL에서 인증 코드 추출 (JWT 디코딩 제거)
   useEffect(() => {
-    const tokenParam = searchParams.get("token");
-    if (tokenParam) {
-      setToken(tokenParam);
-      const extractedEmail = extractEmailFromToken(tokenParam);
-      setEmail(extractedEmail);
-      console.log("토큰 확인:", tokenParam);
-      console.log("이메일 추출:", extractedEmail);
+    const codeParam = searchParams.get("code");
+    if (codeParam) {
+      setCode(codeParam);
+      console.log("✅ 인증 코드 확인:", codeParam);
     } else {
-      setError("토큰이 없습니다. 올바른 링크를 통해 접근해주세요.");
+      setError("인증 코드가 없습니다. 올바른 링크를 통해 접근해주세요.");
     }
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!token) {
-      setError("토큰이 없습니다");
+    if (!code) {
+      setError("인증 코드가 없습니다");
       return;
     }
 
@@ -67,11 +55,18 @@ export default function CompleteProfilePage() {
     setError("");
 
     try {
-      console.log("회원가입 요청 데이터:", { token, formData });
+      console.log("🚀 회원가입 요청:", { code, formData });
 
-      const result = await completeRegistration(token, formData);
+      // 🆕 인증 코드로 회원가입 완료
+      const result = await completeRegistration(code, formData);
 
-      console.log("✅ 회원가입 완료 응답:", result);
+      console.log("✅ 회원가입 완료:", result);
+
+      // 🆕 Zustand에 로그인 정보 저장
+      if (result.user && result.accessToken) {
+        login(result.user, result.accessToken);
+        console.log("✅ 자동 로그인 완료:", result.user.email);
+      }
 
       setSuccess(true);
 
@@ -97,17 +92,19 @@ export default function CompleteProfilePage() {
       }));
     };
 
-  if (!token && !error) {
+  // 로딩 상태
+  if (!code && !error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-4" />
-          <p className="text-muted-foreground">토큰을 확인하는 중...</p>
+          <p className="text-muted-foreground">인증 코드를 확인하는 중...</p>
         </div>
       </div>
     );
   }
 
+  // 성공 상태
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -133,6 +130,7 @@ export default function CompleteProfilePage() {
     );
   }
 
+  // 프로필 입력 폼
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -151,17 +149,7 @@ export default function CompleteProfilePage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">이메일</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                disabled
-                className="bg-muted cursor-not-allowed"
-              />
-            </div>
-
+            {/* 🗑️ 이메일 필드 제거 (JWT 디코딩 불가능) */}
             <div className="space-y-2">
               <Label htmlFor="profileName">프로필명 *</Label>
               <Input
@@ -184,7 +172,7 @@ export default function CompleteProfilePage() {
                 placeholder="hong_developer"
                 value={formData.userId}
                 onChange={handleInputChange("userId")}
-                pattern="[a-zA-Z0-9_]+"
+                pattern="[a-zA-Z0-9_-]+"
                 required
               />
             </div>

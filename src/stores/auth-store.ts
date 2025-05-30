@@ -12,20 +12,16 @@ interface User {
 }
 
 interface AuthState {
-  // 상태
   user: User | null;
   accessToken: string | null;
-  refreshToken: string | null;
   isLoading: boolean;
 
-  // 액션
-  login: (user: User, accessToken: string, refreshToken: string) => void;
+  login: (user: User, accessToken: string) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
-  setTokens: (accessToken: string, refreshToken?: string) => void;
+  setAccessToken: (accessToken: string) => void;
   updateUser: (user: Partial<User>) => void;
 
-  // 토큰 관련 헬퍼
   isAuthenticated: () => boolean;
   getAccessToken: () => string | null;
   clearAuth: () => void;
@@ -34,19 +30,15 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // 초기 상태
       user: null,
       accessToken: null,
-      refreshToken: null,
       isLoading: false,
 
-      // 로그인
-      login: (user: User, accessToken: string, refreshToken: string) => {
+      login: (user: User, accessToken: string) => {
         console.log("🔐 Zustand 로그인:", user.email);
         set({
           user,
           accessToken,
-          refreshToken,
           isLoading: false,
         });
       },
@@ -57,7 +49,6 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           accessToken: null,
-          refreshToken: null,
           isLoading: false,
         });
       },
@@ -67,13 +58,10 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading });
       },
 
-      // 토큰 업데이트 (토큰 갱신 시 사용)
-      setTokens: (accessToken: string, refreshToken?: string) => {
-        const currentState = get();
-        set({
-          accessToken,
-          refreshToken: refreshToken || currentState.refreshToken,
-        });
+      // 액세스 토큰만 업데이트 (토큰 갱신 시 사용)
+      setAccessToken: (accessToken: string) => {
+        console.log("🔄 액세스 토큰 업데이트");
+        set({ accessToken });
       },
 
       // 사용자 정보 업데이트
@@ -101,18 +89,16 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           accessToken: null,
-          refreshToken: null,
           isLoading: false,
         });
       },
     }),
     {
       name: "dev-kundalik-auth", // localStorage 키
-      // 토큰과 사용자 정보만 저장, isLoading은 제외
+      // accessToken과 사용자 정보만 저장 (refreshToken 제외)
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
       }),
       // 저장/복원 시 로그
       onRehydrateStorage: () => {

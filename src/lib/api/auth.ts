@@ -13,7 +13,6 @@ export interface AuthResponse {
   message: string;
   isNewUser: boolean;
   accessToken?: string;
-  refreshToken?: string;
   user?: User;
 }
 
@@ -44,9 +43,9 @@ export async function sendMagicLink(email: string): Promise<AuthResponse> {
   return response.json();
 }
 
-// 회원가입 완료 (프로필 정보 포함)
+// 🆕 회원가입 완료 (인증 코드 방식)
 export async function completeRegistration(
-  token: string,
+  code: string, // 🔄 token → code로 변경
   profileData: CompleteProfileData
 ): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/complete-registration`, {
@@ -54,8 +53,9 @@ export async function completeRegistration(
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include", // 쿠키 포함 (refreshToken 받기 위해)
     body: JSON.stringify({
-      token,
+      code, // 🔄 token → code로 변경
       profile: profileData,
     }),
   });
@@ -68,16 +68,34 @@ export async function completeRegistration(
   return response.json();
 }
 
-// 토큰 갱신
-export async function refreshAccessToken(
-  refreshToken: string
-): Promise<{ accessToken: string }> {
+// 🆕 로그인 성공 후 사용자 정보 조회 (새로운 함수)
+export async function getCurrentUserInfo(): Promise<{
+  accessToken: string;
+  user: User;
+}> {
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include", // 쿠키에서 refreshToken 읽기
+  });
+
+  if (!response.ok) {
+    throw new Error("사용자 정보를 가져올 수 없습니다");
+  }
+
+  return response.json();
+}
+
+// 토큰 갱신 - 쿠키에서 refreshToken 자동으로 읽음
+export async function refreshAccessToken(): Promise<{ accessToken: string }> {
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${refreshToken}`,
       "Content-Type": "application/json",
     },
+    credentials: "include", // 쿠키에서 refreshToken 읽기
   });
 
   if (!response.ok) {
@@ -87,42 +105,18 @@ export async function refreshAccessToken(
   return response.json();
 }
 
-// 현재 사용자 정보 조회 (JWT 토큰 기반)
-export async function getCurrentUser(
-  accessToken?: string
-): Promise<User | null> {
-  if (!accessToken) {
-    return null;
-  }
+// 🗑️ 사용 안함: getCurrentUser 함수 (JWT 디코딩 방식)
+// export async function getCurrentUser(accessToken?: string) { ... }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return response.json();
-  } catch (error) {
-    console.error("getCurrentUser error:", error);
-    return null;
-  }
-}
-
-// 로그아웃 (토큰 무효화)
-export async function logout(accessToken?: string): Promise<void> {
-  if (!accessToken) return;
-
+// 로그아웃 - refreshToken 쿠키 삭제
+export async function logout(): Promise<void> {
   try {
     await fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
+      credentials: "include", // 쿠키 포함 (refreshToken 삭제하기 위해)
     });
   } catch (error) {
     console.error("Logout error:", error);

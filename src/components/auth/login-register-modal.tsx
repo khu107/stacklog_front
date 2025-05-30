@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Github, Mail } from "lucide-react";
+import { Github, Mail, CheckCircle } from "lucide-react";
 import { sendMagicLink } from "@/lib/api/auth";
 
 interface LoginModalProps {
@@ -27,20 +27,16 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
     setMessage("");
 
     try {
       const result = await sendMagicLink(email);
 
       console.log("API 응답:", result);
-
-      setMessage(result.message);
 
       if (result.isNewUser) {
         setMessage("회원가입 이메일을 확인해주세요! 📧");
@@ -49,7 +45,8 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
       }
     } catch (error) {
       console.error("API 에러:", error);
-      setError(error instanceof Error ? error.message : "요청 실패");
+      // 🆕 에러는 alert으로 표시
+      alert(error instanceof Error ? error.message : "요청 실패");
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +70,14 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* 🎉 성공 메시지만 표시 (에러는 alert으로) */}
+          {message && (
+            <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-md">
+              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+              <p className="text-green-800 text-sm">{message}</p>
+            </div>
+          )}
+
           {/* 이메일 로그인 */}
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-2">
@@ -84,6 +89,7 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -118,6 +124,7 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
               variant="outline"
               className="w-full"
               onClick={() => handleSocialLogin("github")}
+              disabled={isLoading}
             >
               <Github className="mr-2 h-4 w-4" />
               GitHub로 계속하기
@@ -127,6 +134,7 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
               variant="outline"
               className="w-full"
               onClick={() => handleSocialLogin("google")}
+              disabled={isLoading}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -153,6 +161,7 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
               variant="outline"
               className="w-full"
               onClick={() => handleSocialLogin("naver")}
+              disabled={isLoading}
             >
               <div className="mr-2 h-4 w-4 rounded bg-green-500 flex items-center justify-center">
                 <span className="text-white text-xs font-bold">N</span>

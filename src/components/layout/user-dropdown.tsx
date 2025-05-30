@@ -14,6 +14,7 @@ import {
 import { User, Settings, LogOut } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRouter } from "next/navigation";
+import { logout as logoutAPI } from "@/lib/api/auth";
 
 export default function UserDropdown() {
   const { user, logout } = useAuthStore();
@@ -21,10 +22,26 @@ export default function UserDropdown() {
 
   if (!user) return null;
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log("🚪 로그아웃 실행");
-    logout();
-    router.push("/");
+
+    try {
+      // 1. 서버에 로그아웃 요청 (refreshToken 쿠키 삭제)
+      await logoutAPI();
+      console.log("✅ 서버 로그아웃 완료 - 쿠키 삭제됨");
+
+      // 2. 클라이언트 상태 초기화
+      logout();
+      console.log("✅ 클라이언트 상태 초기화 완료");
+
+      // 3. 홈페이지로 리다이렉트
+      router.push("/");
+    } catch (error) {
+      console.error("❌ 로그아웃 중 오류:", error);
+      // 에러가 있어도 클라이언트 상태는 초기화
+      logout();
+      router.push("/");
+    }
   };
 
   const handleProfile = () => {
@@ -62,9 +79,9 @@ export default function UserDropdown() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            {/* <p className="text-sm font-medium leading-none">
+            <p className="text-sm font-medium leading-none">
               {user.profileName || "사용자"}
-            </p> */}
+            </p>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
