@@ -1,25 +1,22 @@
-// src/components/layout/header.tsx
+// src/components/layout/header.tsx (Hydration 이슈 해결)
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Bell, PenSquare } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import LoginModal from "../auth/login-register-modal";
 import UserDropdown from "./user-dropdown";
 
 export default function Header() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, hasHydrated } = useAuthStore();
 
-  // 클라이언트에서만 인증 상태 확인
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const userLoggedIn = isClient && isAuthenticated() && user;
+  // 🔧 Hydration이 완료될 때까지 로그인 상태를 보여주지 않음
+  const userLoggedIn = hasHydrated && isAuthenticated() && user;
+  const showAuthUI = hasHydrated; // Hydration 완료 후에만 인증 UI 표시
+  console.log("userLoggedIn", userLoggedIn);
 
   return (
     <>
@@ -42,7 +39,7 @@ export default function Header() {
             {/* Notification Bell */}
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              {/* 클라이언트에서만 알림 배지 표시 */}
+              {/* 로그인된 상태에서만 알림 배지 표시 */}
               {userLoggedIn && (
                 <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[11px] font-medium text-white flex items-center justify-center">
                   3
@@ -51,35 +48,49 @@ export default function Header() {
               <span className="sr-only">알림</span>
             </Button>
 
-            {/* 로그인 상태에 따른 조건부 렌더링 */}
-            {userLoggedIn ? (
-              // 로그인 후 UI
-              <>
-                {/* 글쓰기 버튼 */}
-                <Button variant="default" size="sm" className="hidden sm:flex">
-                  <PenSquare className="mr-2 h-4 w-4" />
-                  글쓰기
-                </Button>
+            {/* 🔧 Hydration 완료 후에만 인증 UI 표시 */}
+            {showAuthUI ? (
+              userLoggedIn ? (
+                // ✅ 로그인 후 UI
+                <>
+                  {/* 글쓰기 버튼 */}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="hidden sm:flex"
+                  >
+                    <PenSquare className="mr-2 h-4 w-4" />
+                    글쓰기
+                  </Button>
 
-                {/* 사용자 드롭다운 */}
-                <UserDropdown />
-              </>
+                  {/* 사용자 드롭다운 */}
+                  <UserDropdown />
+                </>
+              ) : (
+                // ❌ 로그인 전 UI
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsLoginModalOpen(true)}
+                >
+                  로그인
+                </Button>
+              )
             ) : (
-              // 로그인 전 UI (서버에서도 안전하게 렌더링)
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setIsLoginModalOpen(true)}
-              >
-                로그인
-              </Button>
+              // ⏳ Hydration 중 - 로딩 상태
+              <div className="w-16 h-8 bg-gray-200 animate-pulse rounded-md" />
             )}
           </div>
         </div>
       </header>
 
       {/* 로그인 모달 */}
-      <LoginModal open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen} />
+      {showAuthUI && (
+        <LoginModal
+          open={isLoginModalOpen}
+          onOpenChange={setIsLoginModalOpen}
+        />
+      )}
     </>
   );
 }

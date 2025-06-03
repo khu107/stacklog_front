@@ -1,106 +1,115 @@
-// src/stores/auth-store.ts
+// src/stores/auth-store.ts (쿠키 기반으로 수정)
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+// Google 사용자 타입 (백엔드와 일치)
 interface User {
   id: number;
   email: string;
-  profileName: string;
-  userId: string;
-  introduction?: string;
-  isVerified: boolean;
+  displayName: string;
+  profileName?: string;
+  idname: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  status: "pending" | "active"; // 백엔드 enum과 일치
+  emailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
   isLoading: boolean;
+  hasHydrated: boolean;
 
-  login: (user: User, accessToken: string) => void;
+  // Actions
+  login: (user: User) => void; // 토큰은 쿠키로 관리하므로 제거
   logout: () => void;
   setLoading: (loading: boolean) => void;
-  setAccessToken: (accessToken: string) => void;
-  updateUser: (user: Partial<User>) => void;
+  updateUser: (user: User) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
 
+  // Getters
   isAuthenticated: () => boolean;
-  getAccessToken: () => string | null;
-  clearAuth: () => void;
+  needsProfileSetup: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      accessToken: null,
       isLoading: false,
+      hasHydrated: false,
 
-      login: (user: User, accessToken: string) => {
-        console.log("🔐 Zustand 로그인:", user.email);
+      login: (user: User) => {
+        console.log(
+          "🔐 Google 로그인:",
+          user.email,
+          user.status === "pending" ? "프로필 설정 필요" : "로그인 완료"
+        );
         set({
           user,
-          accessToken,
           isLoading: false,
         });
       },
 
-      // 로그아웃
-      logout: () => {
-        console.log("🚪 Zustand 로그아웃");
+      logout: async () => {
+        console.log("🚪 로그아웃");
+
+        // 로그아웃 API 호출 (쿠키 삭제)
+        try {
+          await fetch(
+            `${
+              process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+            }/auth/logout`,
+            {
+              method: "POST",
+              credentials: "include",
+            }
+          );
+        } catch (error) {
+          console.error("로그아웃 API 오류:", error);
+        }
+
+        // 클라이언트 상태 초기화
         set({
           user: null,
-          accessToken: null,
           isLoading: false,
         });
+
+        // 수동으로 쿠키 삭제 (보험용)
+        document.cookie = "accessToken=; Max-Age=0; path=/";
+        document.cookie = "refreshToken=; Max-Age=0; path=/";
       },
 
-      // 로딩 상태
       setLoading: (isLoading: boolean) => {
         set({ isLoading });
       },
 
-      // 액세스 토큰만 업데이트 (토큰 갱신 시 사용)
-      setAccessToken: (accessToken: string) => {
-        console.log("🔄 액세스 토큰 업데이트");
-        set({ accessToken });
+      updateUser: (user: User) => {
+        console.log("👤 사용자 정보 업데이트:", user.displayName);
+        set({ user });
       },
 
-      // 사용자 정보 업데이트
-      updateUser: (userData: Partial<User>) => {
-        const currentUser = get().user;
-        if (currentUser) {
-          set({ user: { ...currentUser, ...userData } });
-        }
+      setHasHydrated: (hasHydrated: boolean) => {
+        set({ hasHydrated });
       },
 
-      // 인증 여부 확인
       isAuthenticated: () => {
         const state = get();
-        return !!(state.user && state.accessToken);
+        return !!state.user;
       },
 
-      // 액세스 토큰 조회
-      getAccessToken: () => {
-        return get().accessToken;
-      },
-
-      // 모든 인증 정보 삭제
-      clearAuth: () => {
-        console.log("🗑️ 인증 정보 완전 삭제");
-        set({
-          user: null,
-          accessToken: null,
-          isLoading: false,
-        });
+      needsProfileSetup: () => {
+        const state = get();
+        return state.user ? state.user.status === "pending" : false;
       },
     }),
     {
-      name: "dev-kundalik-auth", // localStorage 키
-      // accessToken과 사용자 정보만 저장 (refreshToken 제외)
+      name: "dev-kundalik-auth",
       partialize: (state) => ({
-        user: state.user,
-        accessToken: state.accessToken,
+        user: state.user, // 사용자 정보만 저장, 토큰은 쿠키에서 관리
       }),
-      // 저장/복원 시 로그
       onRehydrateStorage: () => {
         console.log("🔄 인증 상태 복원 시작...");
         return (state, error) => {
@@ -112,8 +121,17 @@ export const useAuthStore = create<AuthState>()(
               state?.user?.email || "로그인 안됨"
             );
           }
+          state?.setHasHydrated(true);
         };
       },
     }
   )
 );
+
+// 하이드레이션 훅 (SSR 이슈 해결용)
+export const useAuthStoreHydrated = () => {
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const setHasHydrated = useAuthStore((state) => state.setHasHydrated);
+
+  return { hasHydrated, setHasHydrated };
+};

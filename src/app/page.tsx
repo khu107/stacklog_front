@@ -1,32 +1,10 @@
-// src/app/page.tsx
+// src/app/page.tsx (정리된 버전 - 순수 콘텐츠 표시)
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, Suspense } from "react";
-import { useAuthStore } from "@/stores/auth-store";
+import { Suspense } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Heart, MessageCircle, Eye } from "lucide-react";
-import Link from "next/link";
-
-// JWT 토큰에서 사용자 정보 추출 함수 (기존 사용자 로그인용)
-const extractUserFromToken = (token: string) => {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return {
-      id: payload.sub,
-      email: payload.email,
-      profileName: payload.profileName,
-      userId: payload.userId,
-      introduction: payload.introduction || "",
-      isVerified: true,
-    };
-  } catch (error) {
-    console.error("토큰 디코딩 실패:", error);
-    return null;
-  }
-};
 
 // 임시 데이터 (나중에 API로 대체)
 const mockPosts = [
@@ -109,105 +87,18 @@ const mockPosts = [
 ];
 
 function HomeContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { login, user, isAuthenticated, getAccessToken } = useAuthStore();
-  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-
-  // 🔑 기존 사용자 로그인 처리 (URL에서 accessToken 읽기)
-  useEffect(() => {
-    const accessToken = searchParams.get("accessToken");
-
-    if (accessToken) {
-      console.log("🔑 기존 사용자 로그인 처리 중...");
-      console.log("Access Token:", accessToken.substring(0, 50) + "...");
-
-      // JWT에서 사용자 정보 추출
-      const userData = extractUserFromToken(accessToken);
-
-      if (userData) {
-        // Zustand 스토어에 로그인 정보 저장
-        login(userData, accessToken);
-
-        console.log("✅ 기존 사용자 자동 로그인 완료:", userData.email);
-        console.log("🍪 Refresh Token은 쿠키로 자동 관리됨");
-
-        // URL에서 토큰 제거 (깔끔하게)
-        router.replace("/");
-      } else {
-        console.error("❌ 토큰에서 사용자 정보 추출 실패");
-        router.replace("/login?error=invalid_token");
-      }
-    }
-  }, [searchParams, router, login]);
-
-  // 💝 좋아요 버튼 클릭 핸들러
-  const handleLike = async (postId: number) => {
-    // 🔐 인증 체크
-    if (!isAuthenticated()) {
-      setShowLoginPrompt(true);
-      return;
-    }
-
-    try {
-      const token = getAccessToken();
-
-      // API 호출 (실제로는 백엔드 API 호출)
-      const response = await fetch(`/api/posts/${postId}/like`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        // 좋아요 성공
-        setLikedPosts((prev) => {
-          const newSet = new Set(prev);
-          if (newSet.has(postId)) {
-            newSet.delete(postId); // 좋아요 취소
-          } else {
-            newSet.add(postId); // 좋아요 추가
-          }
-          return newSet;
-        });
-        console.log(
-          `✅ 게시글 ${postId} 좋아요 ${
-            likedPosts.has(postId) ? "취소" : "추가"
-          }`
-        );
-      } else if (response.status === 401) {
-        // 토큰 만료 - 실제로는 토큰 갱신 로직이 들어가야 함
-        alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
-      }
-    } catch (error) {
-      console.error("좋아요 처리 중 오류:", error);
-    }
-  };
-
   const getUserInitials = (name: string) => {
     return name.charAt(0).toUpperCase();
   };
 
-  const isLoggedIn = isAuthenticated() && user;
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
-        {/* 헤더 섹션 - 로그인 상태에 따라 다른 메시지 */}
+        {/* 헤더 섹션 */}
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold mb-4">
-            {isLoggedIn
-              ? `안녕하세요, ${user.profileName}님!`
-              : "개발자들의 이야기"}
-          </h1>
+          <h1 className="text-4xl font-bold mb-4">개발자들의 이야기</h1>
           <p className="text-xl text-muted-foreground">
-            {isLoggedIn
-              ? "오늘은 어떤 개발 경험을 나누시겠어요?"
-              : "다양한 개발 경험과 지식을 공유하는 공간입니다"}
+            다양한 개발 경험과 지식을 공유하는 공간입니다
           </p>
         </div>
 
@@ -261,41 +152,21 @@ function HomeContent() {
                   </span>
                 </div>
 
-                {/* 상호작용 버튼들 */}
+                {/* 통계 정보 - 읽기 전용 */}
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                  {/* 좋아요 버튼 - 인증 필요 */}
-                  <button
-                    onClick={() => handleLike(post.id)}
-                    className={`flex items-center space-x-1 hover:text-red-500 transition-colors ${
-                      likedPosts.has(post.id) ? "text-red-500" : ""
-                    }`}
-                  >
-                    <Heart
-                      className={`h-4 w-4 ${
-                        likedPosts.has(post.id) ? "fill-current" : ""
-                      }`}
-                    />
-                    <span>
-                      {post.stats.likes + (likedPosts.has(post.id) ? 1 : 0)}
-                    </span>
-                  </button>
+                  {/* 좋아요 수 */}
+                  <div className="flex items-center space-x-1">
+                    <Heart className="h-4 w-4" />
+                    <span>{post.stats.likes}</span>
+                  </div>
 
-                  {/* 댓글 버튼 - 인증 필요 */}
-                  <button
-                    onClick={() => {
-                      if (!isAuthenticated()) {
-                        setShowLoginPrompt(true);
-                        return;
-                      }
-                      // 댓글 로직
-                    }}
-                    className="flex items-center space-x-1 hover:text-blue-500 transition-colors"
-                  >
+                  {/* 댓글 수 */}
+                  <div className="flex items-center space-x-1">
                     <MessageCircle className="h-4 w-4" />
                     <span>{post.stats.comments}</span>
-                  </button>
+                  </div>
 
-                  {/* 조회수 - 인증 불필요 */}
+                  {/* 조회수 */}
                   <div className="flex items-center space-x-1">
                     <Eye className="h-4 w-4" />
                     <span>{post.stats.views}</span>
@@ -313,32 +184,6 @@ function HomeContent() {
           </button>
         </div>
       </div>
-
-      {/* 🔐 로그인 안내 모달 */}
-      {showLoginPrompt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader className="text-center">
-              <h2 className="text-xl font-bold">로그인이 필요합니다</h2>
-              <p className="text-muted-foreground">
-                좋아요와 댓글을 남기려면 로그인해주세요
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Link href="/login" className="w-full">
-                <Button className="w-full">로그인하기</Button>
-              </Link>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setShowLoginPrompt(false)}
-              >
-                취소
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
