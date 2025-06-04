@@ -1,4 +1,3 @@
-// src/components/auth/login-register-modal.tsx (Google OAuth 전용)
 "use client";
 
 import type React from "react";
@@ -12,7 +11,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Github } from "lucide-react";
-import { startGoogleLogin, startNaverLogin } from "@/lib/api/auth";
+import {
+  startGithubLogin,
+  startGoogleLogin,
+  startNaverLogin,
+} from "@/lib/api/auth";
 
 interface LoginModalProps {
   open: boolean;
@@ -32,12 +35,19 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
     startNaverLogin();
   };
 
+  const handleGithubLogin = () => {
+    setIsLoading(true);
+    startGithubLogin();
+  };
+
   const handleSocialLogin = (provider: string) => {
     if (provider === "google") {
       handleGoogleLogin();
     } else if (provider === "naver") {
-      // 🆕 네이버 추가
       handleNaverLogin();
+    } else if (provider === "github") {
+      // 🆕 깃허브 로그인 추가
+      handleGithubLogin();
     } else {
       console.log(`${provider} 로그인 - 아직 구현 안됨`);
       alert("아직 구현되지 않은 로그인 방식입니다.");

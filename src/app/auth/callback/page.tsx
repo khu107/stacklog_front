@@ -1,4 +1,3 @@
-// app/auth/callback/page.tsx (경로 수정)
 "use client";
 
 import { useEffect } from "react";

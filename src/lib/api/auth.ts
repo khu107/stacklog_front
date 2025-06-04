@@ -38,6 +38,11 @@ export function startNaverLogin() {
   window.location.href = `${API_BASE_URL}/auth/naver`;
 }
 
+export function startGithubLogin() {
+  console.log("🐙 깃허브 로그인 시작...");
+  window.location.href = `${API_BASE_URL}/auth/github`;
+}
+
 export async function completeProfile(
   profileData: GoogleProfileData
 ): Promise<GoogleAuthResponse> {
