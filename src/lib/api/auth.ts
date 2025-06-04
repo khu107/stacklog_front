@@ -26,38 +26,21 @@ export interface GoogleProfileData {
   bio?: string;
 }
 
-// 🚀 Google OAuth 로그인 시작
+// Google OAuth 로그인 시작
 export function startGoogleLogin() {
   console.log("🔍 Google 로그인 시작...");
   window.location.href = `${API_BASE_URL}/auth/google`;
 }
 
-// // 📝 Google 프로필 설정 완료
-// export async function completeGoogleProfile(
-//   profileData: GoogleProfileData
-// ): Promise<GoogleAuthResponse> {
-//   const response = await fetch(`${API_BASE_URL}/auth/complete-profile`, {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//     },
-//     credentials: "include", // 쿠키에서 accessToken 자동 포함
-//     body: JSON.stringify(profileData),
-//   });
+// 네이버 OAuth 로그인 시작
+export function startNaverLogin() {
+  console.log("🟢 네이버 로그인 시작...");
+  window.location.href = `${API_BASE_URL}/auth/naver`;
+}
 
-//   if (!response.ok) {
-//     const error = await response.json();
-//     throw new Error(error.message || "프로필 설정에 실패했습니다");
-//   }
-
-//   return response.json();
-// }
-
-// lib/api/auth.ts - completeGoogleProfile 함수 수정
-export async function completeGoogleProfile(
+export async function completeProfile(
   profileData: GoogleProfileData
 ): Promise<GoogleAuthResponse> {
-  // 🔧 쿠키에서 accessToken 추출
   const cookies = document.cookie.split(";").map((c) => c.trim());
   const tokenCookie = cookies.find((c) => c.startsWith("accessToken="));
 
@@ -71,9 +54,9 @@ export async function completeGoogleProfile(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`, // 🔧 Authorization 헤더 추가
+      Authorization: `Bearer ${accessToken}`,
     },
-    credentials: "include", // 쿠키도 포함
+    credentials: "include",
     body: JSON.stringify(profileData),
   });
 
@@ -97,6 +80,25 @@ export async function refreshAccessToken(): Promise<{ success: boolean }> {
 
   if (!response.ok) {
     throw new Error("토큰 갱신에 실패했습니다");
+  }
+
+  return response.json();
+}
+
+export async function checkIdnameAvailable(idname: string): Promise<{
+  idname: string;
+  isAvailable: boolean;
+  message: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/users/check-idname/${idname}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("사용자 ID 확인에 실패했습니다");
   }
 
   return response.json();

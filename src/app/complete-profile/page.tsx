@@ -1,4 +1,3 @@
-// src/app/complete-profile/page.tsx (완전 수정 버전)
 "use client";
 
 import { useState, useEffect } from "react";
@@ -14,16 +13,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/stores/auth-store";
-import { completeGoogleProfile } from "@/lib/api/auth";
+import { completeProfile, checkIdnameAvailable } from "@/lib/api/auth";
 
 export default function CompleteProfilePage() {
   const router = useRouter();
-  const { user, updateUser, needsProfileSetup, login } = useAuthStore(); // 🔧 수정된 store 함수들
+  const { user, updateUser, needsProfileSetup } = useAuthStore();
 
   const [idname, setIdname] = useState("");
   const [bio, setBio] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // 🆕 인증 확인 중
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [idnameStatus, setIdnameStatus] = useState<
     "idle" | "checking" | "available" | "taken"
   >("idle");
@@ -31,96 +30,34 @@ export default function CompleteProfilePage() {
     {}
   );
 
-  // 🆕 개선된 쿠키 확인 로직
+  // AuthProvider에서 이미 JWT 복원을 처리하므로 간단하게 처리
   useEffect(() => {
-    const checkTokenAndCreateUser = () => {
-      console.log("🔍 토큰 확인 중...");
-      console.log("📋 전체 쿠키:", document.cookie);
+    setIsCheckingAuth(false);
+  }, []);
 
-      // 더 정확한 쿠키 확인
-      const cookies = document.cookie.split(";").map((c) => c.trim());
-      console.log("🍪 쿠키 목록:", cookies);
-
-      const hasAccessToken = cookies.some(
-        (cookie) => cookie.startsWith("accessToken=") && cookie.length > 15
-      );
-
-      console.log("🍪 토큰 존재:", hasAccessToken);
-
-      if (hasAccessToken && !user) {
-        console.log("🔄 JWT에서 사용자 정보 추출 중...");
-
-        // JWT 토큰에서 사용자 정보 추출
-        const tokenCookie = cookies.find((c) => c.startsWith("accessToken="));
-        if (tokenCookie) {
-          const token = tokenCookie.split("=")[1];
-
-          try {
-            // JWT 디코딩 (페이로드 부분만)
-            const payload = JSON.parse(atob(token.split(".")[1]));
-            console.log("🎯 JWT 페이로드:", payload);
-
-            const tempUser = {
-              id: payload.sub,
-              email: payload.email,
-              displayName: payload.displayName,
-              idname: payload.idname,
-              avatarUrl: payload.avatarUrl,
-              bio: null,
-              status: (payload.idname ? "active" : "pending") as
-                | "active"
-                | "pending", // 🔧 소문자로 수정
-              emailVerified: true,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-
-            login(tempUser);
-            console.log("✅ JWT에서 사용자 정보 복원 완료:", tempUser);
-          } catch (error) {
-            console.error("❌ JWT 디코딩 실패:", error);
-          }
-        }
-      }
-
-      setIsCheckingAuth(false);
-    };
-
-    // 약간의 지연 후 실행 (하이드레이션 완료 대기)
-    const timer = setTimeout(checkTokenAndCreateUser, 100);
-    return () => clearTimeout(timer);
-  }, [user, login]);
-
-  // 🔧 수정된 인증 검증 로직
+  // 인증 상태 확인 (AuthProvider에서 사용자 정보 복원 완료 후)
   useEffect(() => {
-    if (isCheckingAuth) return; // 인증 확인 중이면 대기
-
-    console.log("🔐 인증 상태 확인:", { user: !!user, isCheckingAuth });
+    if (isCheckingAuth) return;
 
     if (!user) {
-      console.log("❌ 사용자 정보 없음 → 홈으로 이동");
       router.push("/");
       return;
     }
 
-    // 이미 프로필이 완성된 사용자라면 홈으로
     if (!needsProfileSetup()) {
-      console.log("✅ 프로필 이미 완성 → 홈으로 이동");
       router.push("/");
       return;
     }
-
-    console.log("🎯 프로필 설정 페이지 유지");
   }, [user, needsProfileSetup, router, isCheckingAuth]);
 
-  // idname 중복 체크 (디바운스)
+  // 🔧 실제 API를 사용한 idname 중복 체크
   useEffect(() => {
     if (idname.length < 2) {
       setIdnameStatus("idle");
       return;
     }
 
-    // 영문, 숫자, 언더스코어, 하이픈만 허용
+    // 기본 유효성 검사
     const isValidFormat = /^[a-zA-Z0-9_-]+$/.test(idname);
     if (!isValidFormat) {
       setIdnameStatus("idle");
@@ -131,20 +68,49 @@ export default function CompleteProfilePage() {
       return;
     }
 
+    // 예약어 체크
+    const reservedWords = [
+      "admin",
+      "api",
+      "www",
+      "root",
+      "test",
+      "null",
+      "undefined",
+    ];
+    if (reservedWords.includes(idname.toLowerCase())) {
+      setIdnameStatus("taken");
+      setErrors({
+        ...errors,
+        idname: "사용할 수 없는 사용자 ID입니다",
+      });
+      return;
+    }
+
     setErrors({ ...errors, idname: undefined });
     setIdnameStatus("checking");
 
     const timeoutId = setTimeout(async () => {
       try {
-        // 🔧 임시로 모든 idname을 사용 가능으로 처리 (백엔드 API 없음)
-        setIdnameStatus("available");
+        // 실제 백엔드 API 호출
+        const result = await checkIdnameAvailable(idname);
 
-        // TODO: 나중에 실제 API 호출로 변경
-        // const result = await checkIdnameAvailable(idname);
-        // setIdnameStatus(result.isAvailable ? "available" : "taken");
+        if (result.isAvailable) {
+          setIdnameStatus("available");
+          setErrors({ ...errors, idname: undefined });
+        } else {
+          setIdnameStatus("taken");
+          setErrors({
+            ...errors,
+            idname: result.message || "이미 사용 중인 사용자 ID입니다",
+          });
+        }
       } catch (error) {
-        console.error("ID 중복 체크 에러:", error);
         setIdnameStatus("idle");
+        setErrors({
+          ...errors,
+          idname: "ID 확인 중 오류가 발생했습니다",
+        });
       }
     }, 500);
 
@@ -154,8 +120,19 @@ export default function CompleteProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 🔧 더 엄격한 검증
+    if (idnameStatus === "checking") {
+      setErrors({ ...errors, general: "ID 확인이 완료될 때까지 기다려주세요" });
+      return;
+    }
+
     if (idnameStatus !== "available") {
       setErrors({ ...errors, general: "사용 가능한 ID를 입력해주세요" });
+      return;
+    }
+
+    if (!idname.trim()) {
+      setErrors({ ...errors, general: "사용자 ID를 입력해주세요" });
       return;
     }
 
@@ -163,22 +140,24 @@ export default function CompleteProfilePage() {
     setErrors({});
 
     try {
-      console.log("📝 프로필 설정 요청:", { idname, bio });
+      // 최종 중복 체크 (제출 직전)
+      const finalCheck = await checkIdnameAvailable(idname);
 
-      // 🔧 쿠키 기반 API 호출 (accessToken 파라미터 제거)
-      const result = await completeGoogleProfile({ idname, bio });
+      if (!finalCheck.isAvailable) {
+        setErrors({
+          general: "다른 사용자가 방금 사용한 ID입니다. 다른 ID를 선택해주세요",
+        });
+        setIdnameStatus("taken");
+        return;
+      }
 
-      // 사용자 정보 업데이트
+      const result = await completeProfile({ idname, bio });
+
       updateUser(result.user);
 
-      console.log("✅ 프로필 설정 완료:", result.user);
-
-      // 성공 시 홈으로 이동
       router.push("/");
     } catch (error) {
-      console.error("❌ 프로필 완성 에러:", error);
       setErrors({
-        ...errors,
         general:
           error instanceof Error ? error.message : "프로필 설정에 실패했습니다",
       });
@@ -190,17 +169,17 @@ export default function CompleteProfilePage() {
   const getIdnameStatusMessage = () => {
     switch (idnameStatus) {
       case "checking":
-        return { text: "확인 중...", color: "text-gray-500" };
+        return { text: "서버에서 확인 중...", color: "text-blue-500" };
       case "available":
-        return { text: "사용 가능한 ID입니다", color: "text-green-600" };
+        return { text: "✅ 사용 가능한 ID입니다", color: "text-green-600" };
       case "taken":
-        return { text: "이미 사용 중인 ID입니다", color: "text-red-600" };
+        return null; // 에러 메시지에서 표시하므로 여기서는 제거
       default:
         return null;
     }
   };
 
-  // 🔧 로딩 상태 개선
+  // 로딩 상태
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -246,11 +225,12 @@ export default function CompleteProfilePage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 사용자 ID */}
+              {/* 🔧 사용자 ID 입력 개선 */}
               <div>
                 <Label htmlFor="idname">사용자 ID *</Label>
                 <Input
                   id="idname"
+                  name="idname"
                   type="text"
                   value={idname}
                   onChange={(e) => setIdname(e.target.value)}
@@ -258,11 +238,15 @@ export default function CompleteProfilePage() {
                   required
                   minLength={2}
                   maxLength={20}
-                  className={`mt-1 ${
+                  autoComplete="username"
+                  disabled={isLoading}
+                  className={`mt-1 transition-colors ${
                     idnameStatus === "available"
-                      ? "border-green-500"
-                      : idnameStatus === "taken"
-                      ? "border-red-500"
+                      ? "border-green-500 focus:border-green-500 bg-green-50"
+                      : idnameStatus === "taken" || errors.idname
+                      ? "border-red-500 focus:border-red-500 bg-red-50"
+                      : idnameStatus === "checking"
+                      ? "border-blue-500 focus:border-blue-500 bg-blue-50"
                       : ""
                   }`}
                 />
@@ -285,11 +269,14 @@ export default function CompleteProfilePage() {
                 <Label htmlFor="bio">한 줄 소개</Label>
                 <Input
                   id="bio"
+                  name="bio"
                   type="text"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="당신을 한 줄로 소개해보세요 (선택사항)"
                   maxLength={100}
+                  autoComplete="off"
+                  disabled={isLoading}
                   className="mt-1"
                 />
                 <p className="text-xs text-gray-500 mt-1">{bio.length}/100자</p>
@@ -297,7 +284,7 @@ export default function CompleteProfilePage() {
 
               {/* 에러 메시지 */}
               {errors.general && (
-                <div className="text-red-600 text-sm text-center">
+                <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded">
                   {errors.general}
                 </div>
               )}
@@ -306,7 +293,9 @@ export default function CompleteProfilePage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading || idnameStatus !== "available" || !idname}
+                disabled={
+                  isLoading || idnameStatus !== "available" || !idname.trim()
+                }
               >
                 {isLoading ? (
                   <div className="flex items-center space-x-2">

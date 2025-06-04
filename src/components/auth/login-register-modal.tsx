@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Github } from "lucide-react";
-import { startGoogleLogin } from "@/lib/api/auth";
+import { startGoogleLogin, startNaverLogin } from "@/lib/api/auth";
 
 interface LoginModalProps {
   open: boolean;
@@ -24,12 +24,20 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    startGoogleLogin(); // Google OAuth 시작
+    startGoogleLogin();
+  };
+
+  const handleNaverLogin = () => {
+    setIsLoading(true);
+    startNaverLogin();
   };
 
   const handleSocialLogin = (provider: string) => {
     if (provider === "google") {
       handleGoogleLogin();
+    } else if (provider === "naver") {
+      // 🆕 네이버 추가
+      handleNaverLogin();
     } else {
       console.log(`${provider} 로그인 - 아직 구현 안됨`);
       alert("아직 구현되지 않은 로그인 방식입니다.");

@@ -26,10 +26,10 @@ export default function Header() {
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">D</span>
+                <span className="text-sm font-bold">S</span>
               </div>
               <span className="text-xl font-bold text-foreground">
-                dev_kundalik
+                StackLog
               </span>
             </Link>
           </div>

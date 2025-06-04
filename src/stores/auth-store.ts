@@ -11,7 +11,7 @@ interface User {
   idname: string | null;
   avatarUrl: string | null;
   bio: string | null;
-  status: "pending" | "active"; // 백엔드 enum과 일치
+  status: "pending" | "active";
   emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -23,7 +23,7 @@ interface AuthState {
   hasHydrated: boolean;
 
   // Actions
-  login: (user: User) => void; // 토큰은 쿠키로 관리하므로 제거
+  login: (user: User) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
   updateUser: (user: User) => void;
@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState>()(
 
       login: (user: User) => {
         console.log(
-          "🔐 Google 로그인:",
+          "🔐 소셜 로그인:",
           user.email,
           user.status === "pending" ? "프로필 설정 필요" : "로그인 완료"
         );
