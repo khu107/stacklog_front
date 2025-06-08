@@ -6,11 +6,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, Settings, LogOut } from "lucide-react";
+import { User, BookOpen, PenTool, Settings, LogOut } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRouter } from "next/navigation";
 
@@ -31,12 +30,20 @@ export default function UserDropdown() {
     }
   };
 
-  const handleProfile = () => {
+  const handleMyBlog = () => {
     if (user.idname) {
-      router.push(`/@${user.idname}`);
+      router.push(`/@${user.idname}/posts`);
     } else {
       router.push("/profile");
     }
+  };
+
+  const handleWritePost = () => {
+    router.push("/write");
+  };
+
+  const handleReadingList = () => {
+    router.push("/reading-list");
   };
 
   const handleSettings = () => {
@@ -67,22 +74,19 @@ export default function UserDropdown() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              @{user.idname || "사용자"}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem onClick={handleProfile}>
+        <DropdownMenuItem onClick={handleMyBlog}>
           <User className="mr-2 h-4 w-4" />
-          <span>프로필</span>
+          <span>내 블로그</span>
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleWritePost}>
+          <PenTool className="mr-2 h-4 w-4" />
+          <span>임시 글</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleReadingList}>
+          <BookOpen className="mr-2 h-4 w-4" />
+          <span>읽기 목록</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSettings}>
           <Settings className="mr-2 h-4 w-4" />
           <span>설정</span>

@@ -34,12 +34,11 @@ export function startGoogleLogin() {
 
 // 네이버 OAuth 로그인 시작
 export function startNaverLogin() {
-  console.log("🟢 네이버 로그인 시작...");
   window.location.href = `${API_BASE_URL}/auth/naver`;
 }
 
+// Github OAuth 로그인 시작
 export function startGithubLogin() {
-  console.log("🐙 깃허브 로그인 시작...");
   window.location.href = `${API_BASE_URL}/auth/github`;
 }
 

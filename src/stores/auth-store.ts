@@ -13,8 +13,6 @@ interface User {
   bio: string | null;
   status: "pending" | "active";
   emailVerified: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface AuthState {
@@ -54,7 +52,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        console.log("🚪 로그아웃");
+        console.log("로그아웃");
 
         // 로그아웃 API 호출 (쿠키 삭제)
         try {
@@ -106,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: "dev-kundalik-auth",
+      name: "stacklog",
       partialize: (state) => ({
         user: state.user, // 사용자 정보만 저장, 토큰은 쿠키에서 관리
       }),
@@ -117,7 +115,7 @@ export const useAuthStore = create<AuthState>()(
             console.error("❌ 인증 상태 복원 실패:", error);
           } else {
             console.log(
-              "✅ 인증 상태 복원 완료:",
+              "인증 상태 복원 완료:",
               state?.user?.email || "로그인 안됨"
             );
           }
