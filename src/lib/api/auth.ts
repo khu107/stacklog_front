@@ -1,4 +1,4 @@
-// src/lib/api/auth.ts (소셜 로그인 전용)
+// src/lib/api/auth.ts (쿠키 기반 인증)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 // Google 사용자 타입
@@ -11,8 +11,8 @@ export interface GoogleUser {
   bio: string | null;
   status: "pending" | "active";
   emailVerified: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface GoogleAuthResponse {
@@ -24,6 +24,12 @@ export interface GoogleAuthResponse {
 export interface GoogleProfileData {
   idname: string;
   bio?: string;
+}
+
+// ✅ 쿠키 확인 함수 추가
+export function hasAuthCookies(): boolean {
+  const cookies = document.cookie.split(";").map((c) => c.trim());
+  return cookies.some((c) => c.startsWith("accessToken="));
 }
 
 // Google OAuth 로그인 시작
@@ -42,25 +48,17 @@ export function startGithubLogin() {
   window.location.href = `${API_BASE_URL}/auth/github`;
 }
 
+// ✅ 수정: Authorization 헤더 제거, 쿠키만 사용
 export async function completeProfile(
   profileData: GoogleProfileData
 ): Promise<GoogleAuthResponse> {
-  const cookies = document.cookie.split(";").map((c) => c.trim());
-  const tokenCookie = cookies.find((c) => c.startsWith("accessToken="));
-
-  if (!tokenCookie) {
-    throw new Error("로그인이 필요합니다");
-  }
-
-  const accessToken = tokenCookie.split("=")[1];
-
   const response = await fetch(`${API_BASE_URL}/auth/complete-profile`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      // Authorization 헤더 제거
     },
-    credentials: "include",
+    credentials: "include", // 쿠키만 사용
     body: JSON.stringify(profileData),
   });
 

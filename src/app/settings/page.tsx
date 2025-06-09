@@ -20,10 +20,10 @@ import {
   Loader2,
 } from "lucide-react";
 
-// 분리된 컴포넌트들 import
 import ThemeSettings from "@/components/settings/ThemeSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import DangerZone from "@/components/settings/DangerZone";
+import { useAuthStore } from "@/stores/auth-store";
 
 // API 함수 import
 import {
@@ -40,6 +40,8 @@ import { checkIdnameAvailable } from "@/lib/api/auth";
 
 export default function SettingsPage() {
   const router = useRouter();
+
+  const { updateUser: updateAuthUser } = useAuthStore();
 
   // 사용자 프로필 상태
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -106,12 +108,15 @@ export default function SettingsPage() {
     setIsEditing((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // 저장 처리
+  // 저장 처리 - TypeScript 오류 해결된 버전
   const handleSave = async (section: keyof typeof isEditing) => {
     if (!user) return;
 
     try {
       setSaving(true);
+
+      // ✅ updatedProfile을 undefined로 초기화
+      let updatedProfile: UserProfile | undefined;
 
       if (section === "basic") {
         const updateData: UpdateBasicProfileData = {};
@@ -122,9 +127,7 @@ export default function SettingsPage() {
           updateData.bio = tempData.bio || undefined;
         }
 
-        const updatedProfile = await updateBasicProfile(updateData);
-        setUser(updatedProfile);
-        setTempData(updatedProfile);
+        updatedProfile = await updateBasicProfile(updateData);
       } else if (section === "idname") {
         if (!tempData.idname) {
           alert("ID를 입력해주세요");
@@ -143,9 +146,7 @@ export default function SettingsPage() {
         }
 
         const updateData: UpdateIdnameData = { idname: tempData.idname };
-        const updatedProfile = await updateIdname(updateData);
-        setUser(updatedProfile);
-        setTempData(updatedProfile);
+        updatedProfile = await updateIdname(updateData);
       } else if (section === "social") {
         const updateData: UpdateSocialProfileData = {};
         if (tempData.github !== user.github) {
@@ -158,12 +159,32 @@ export default function SettingsPage() {
           updateData.website = tempData.website || undefined;
         }
 
-        const updatedProfile = await updateSocialProfile(updateData);
-        setUser(updatedProfile);
-        setTempData(updatedProfile);
+        updatedProfile = await updateSocialProfile(updateData);
       }
 
-      setIsEditing((prev) => ({ ...prev, [section]: false }));
+      // ✅ updatedProfile이 존재할 때만 업데이트
+      if (updatedProfile) {
+        // 로컬 state 업데이트
+        setUser(updatedProfile);
+        setTempData(updatedProfile);
+
+        // AuthStore 업데이트
+        updateAuthUser({
+          id: updatedProfile.id,
+          email: updatedProfile.email,
+          displayName: updatedProfile.displayName,
+          idname: updatedProfile.idname,
+          avatarUrl: updatedProfile.avatarUrl,
+          bio: updatedProfile.bio,
+          status: updatedProfile.status,
+          emailVerified: updatedProfile.emailVerified,
+        });
+
+        console.log("✅ 프로필 업데이트 완료:", updatedProfile);
+
+        // 편집 모드 해제
+        setIsEditing((prev) => ({ ...prev, [section]: false }));
+      }
     } catch (err) {
       console.error(`❌ ${section} 저장 실패:`, err);
       alert(err instanceof Error ? err.message : "저장에 실패했습니다");

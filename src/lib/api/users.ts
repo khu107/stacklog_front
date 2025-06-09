@@ -33,49 +33,40 @@ export interface UpdateIdnameData {
   idname: string;
 }
 
-function getAccessToken(): string {
+// ✅ 쿠키 확인 함수 추가
+export function hasAuthCookies(): boolean {
   const cookies = document.cookie.split(";").map((c) => c.trim());
-  const tokenCookie = cookies.find((c) => c.startsWith("accessToken="));
-
-  if (!tokenCookie) {
-    throw new Error("로그인이 필요합니다");
-  }
-
-  return tokenCookie.split("=")[1];
+  return cookies.some((c) => c.startsWith("accessToken="));
 }
 
-export async function getMyProfile(): Promise<UserProfile> {
-  const accessToken = getAccessToken();
-
+// ✅ 현재 사용자 정보 가져오기 (JWT 디코딩 대신 API 호출)
+export async function getCurrentUser(): Promise<UserProfile> {
   const response = await fetch(`${API_BASE_URL}/users/me`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    credentials: "include",
+    credentials: "include", // 쿠키만 사용
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "프로필 조회에 실패했습니다");
+    throw new Error("사용자 정보를 가져올 수 없습니다");
   }
 
   return response.json();
 }
 
+// ✅ 기존 함수명 유지하면서 내부만 수정
+export async function getMyProfile(): Promise<UserProfile> {
+  return getCurrentUser(); // 위 함수 재사용
+}
+
 export async function updateBasicProfile(
   data: UpdateBasicProfileData
 ): Promise<UserProfile> {
-  const accessToken = getAccessToken();
-
   const response = await fetch(`${API_BASE_URL}/users/me/basic`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      // Authorization 헤더 제거
     },
-    credentials: "include",
+    credentials: "include", // 쿠키만 사용
     body: JSON.stringify(data),
   });
 
@@ -90,15 +81,13 @@ export async function updateBasicProfile(
 export async function updateSocialProfile(
   data: UpdateSocialProfileData
 ): Promise<UserProfile> {
-  const accessToken = getAccessToken();
-
   const response = await fetch(`${API_BASE_URL}/users/me/social`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      // Authorization 헤더 제거
     },
-    credentials: "include",
+    credentials: "include", // 쿠키만 사용
     body: JSON.stringify(data),
   });
 
@@ -113,15 +102,13 @@ export async function updateSocialProfile(
 export async function updateIdname(
   data: UpdateIdnameData
 ): Promise<UserProfile> {
-  const accessToken = getAccessToken();
-
   const response = await fetch(`${API_BASE_URL}/users/me/idname`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      // Authorization 헤더 제거
     },
-    credentials: "include",
+    credentials: "include", // 쿠키만 사용
     body: JSON.stringify(data),
   });
 
@@ -153,15 +140,13 @@ export async function checkIdnameAvailable(idname: string): Promise<{
 }
 
 export async function deleteAccount(): Promise<{ message: string }> {
-  const accessToken = getAccessToken();
-
   const response = await fetch(`${API_BASE_URL}/users/me`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      // Authorization 헤더 제거
     },
-    credentials: "include",
+    credentials: "include", // 쿠키만 사용
   });
 
   if (!response.ok) {
