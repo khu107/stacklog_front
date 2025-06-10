@@ -1,4 +1,3 @@
-// src/components/layout/header.tsx (Hydration 이슈 해결)
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -13,9 +12,9 @@ export default function Header() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { user, isAuthenticated, hasHydrated } = useAuthStore();
 
-  // 🔧 Hydration이 완료될 때까지 로그인 상태를 보여주지 않음
+  // Hydration이 완료될 때까지 로그인 상태를 보여주지 않음
   const userLoggedIn = hasHydrated && isAuthenticated() && user;
-  const showAuthUI = hasHydrated; // Hydration 완료 후에만 인증 UI 표시
+  const showAuthUI = hasHydrated;
   console.log("userLoggedIn", userLoggedIn);
 
   return (

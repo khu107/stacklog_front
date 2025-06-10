@@ -1,29 +1,28 @@
-// src/stores/auth-store.ts (쿠키 기반으로 수정)
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// Google 사용자 타입 (백엔드와 일치)
 interface User {
   id: number;
   email: string;
   displayName: string;
-  profileName?: string;
   idname: string | null;
   avatarUrl: string | null;
   bio: string | null;
   status: "pending" | "active";
   emailVerified: boolean;
+  // 추가 필드들 (users.ts와 통일)
+  github?: string | null;
+  linkedin?: string | null;
+  website?: string | null;
 }
 
 interface AuthState {
   user: User | null;
-  isLoading: boolean;
   hasHydrated: boolean;
 
   // Actions
   login: (user: User) => void;
-  logout: () => void;
-  setLoading: (loading: boolean) => void;
+  clearUser: () => void; // logout → clearUser로 이름 변경
   updateUser: (user: User) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
 
@@ -36,52 +35,20 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      isLoading: false,
       hasHydrated: false,
 
       login: (user: User) => {
         console.log(
-          "🔐 소셜 로그인:",
+          "🔐 로그인:",
           user.email,
           user.status === "pending" ? "프로필 설정 필요" : "로그인 완료"
         );
-        set({
-          user,
-          isLoading: false,
-        });
+        set({ user });
       },
 
-      logout: async () => {
-        console.log("로그아웃");
-
-        // 로그아웃 API 호출 (쿠키 삭제)
-        try {
-          await fetch(
-            `${
-              process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-            }/auth/logout`,
-            {
-              method: "POST",
-              credentials: "include",
-            }
-          );
-        } catch (error) {
-          console.error("로그아웃 API 오류:", error);
-        }
-
-        // 클라이언트 상태 초기화
-        set({
-          user: null,
-          isLoading: false,
-        });
-
-        // 수동으로 쿠키 삭제 (보험용)
-        document.cookie = "accessToken=; Max-Age=0; path=/";
-        document.cookie = "refreshToken=; Max-Age=0; path=/";
-      },
-
-      setLoading: (isLoading: boolean) => {
-        set({ isLoading });
+      clearUser: () => {
+        console.log("🧹 사용자 상태 초기화");
+        set({ user: null });
       },
 
       updateUser: (user: User) => {
@@ -106,7 +73,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "stacklog",
       partialize: (state) => ({
-        user: state.user, // 사용자 정보만 저장, 토큰은 쿠키에서 관리
+        user: state.user,
       }),
       onRehydrateStorage: () => {
         console.log("🔄 인증 상태 복원 시작...");
@@ -115,7 +82,7 @@ export const useAuthStore = create<AuthState>()(
             console.error("❌ 인증 상태 복원 실패:", error);
           } else {
             console.log(
-              "인증 상태 복원 완료:",
+              "✅ 인증 상태 복원 완료:",
               state?.user?.email || "로그인 안됨"
             );
           }
@@ -125,11 +92,3 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
-
-// 하이드레이션 훅 (SSR 이슈 해결용)
-export const useAuthStoreHydrated = () => {
-  const hasHydrated = useAuthStore((state) => state.hasHydrated);
-  const setHasHydrated = useAuthStore((state) => state.setHasHydrated);
-
-  return { hasHydrated, setHasHydrated };
-};

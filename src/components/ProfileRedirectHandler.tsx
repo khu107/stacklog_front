@@ -17,7 +17,7 @@ export default function ProfileRedirectHandler({
     // PENDING 상태이고 프로필 완성 페이지가 아니면 리다이렉트
     if (user?.status === "pending" && pathname !== "/complete-profile") {
       console.log(
-        "🔄 PENDING 상태 사용자 리다이렉트:",
+        "PENDING 상태 사용자 리다이렉트:",
         pathname,
         "→ /complete-profile"
       );

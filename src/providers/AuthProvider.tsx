@@ -2,16 +2,21 @@
 
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/stores/auth-store";
-import { refreshAccessToken, hasAuthCookies } from "@/lib/api/auth";
-import { getCurrentUser } from "@/lib/api/users";
+import { hasAuthCookies } from "@/lib/api/auth";
+import { useCurrentUser } from "@/hooks/useUsers";
+import { useRefreshToken } from "@/hooks/useAuth";
 
 export default function AuthProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { login, logout, hasHydrated, user } = useAuthStore();
+  const { login, clearUser, hasHydrated, user } = useAuthStore();
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ✅ React Query 훅들 사용
+  const { refetch: fetchCurrentUser } = useCurrentUser();
+  const refreshTokenMutation = useRefreshToken();
 
   // 자동 토큰 갱신 설정
   const setupAutoRefresh = () => {
@@ -23,23 +28,24 @@ export default function AuthProvider({
     // 14분마다 토큰 갱신 (15분 만료 전에)
     refreshIntervalRef.current = setInterval(async () => {
       if (!hasAuthCookies()) {
-        logout();
+        clearUser();
         stopAutoRefresh();
         return;
       }
 
       try {
-        await refreshAccessToken();
+        // ✅ React Query mutation 사용
+        await refreshTokenMutation.mutateAsync();
         console.log("토큰 자동 갱신 성공");
       } catch (error) {
         console.error("토큰 갱신 실패:", error);
-        logout();
+        clearUser();
         stopAutoRefresh();
       }
     }, 14 * 60 * 1000); // 14분마다
   };
 
-  // 동 갱신 중지
+  // 자동 갱신 중지
   const stopAutoRefresh = () => {
     if (refreshIntervalRef.current) {
       clearInterval(refreshIntervalRef.current);
@@ -47,16 +53,19 @@ export default function AuthProvider({
     }
   };
 
-  // 사용자 정보 복원 함수 (API 호출)
+  // 사용자 정보 복원 함수 (React Query 사용)
   const restoreUserFromCookie = async () => {
     try {
-      const userInfo = await getCurrentUser();
-      login(userInfo);
-      setupAutoRefresh();
-      console.log("사용자 정보 복원 성공:", userInfo.email);
+      // ✅ React Query refetch 사용
+      const { data: userInfo } = await fetchCurrentUser();
+      if (userInfo) {
+        login(userInfo);
+        setupAutoRefresh();
+        console.log("사용자 정보 복원 성공:", userInfo.email);
+      }
     } catch (error) {
       console.error("사용자 정보 복원 실패:", error);
-      logout();
+      clearUser();
       stopAutoRefresh();
     }
   };
@@ -70,7 +79,7 @@ export default function AuthProvider({
       // 쿠키가 없는데 user가 있으면 로그아웃
       if (!hasCookies && user) {
         console.log("쿠키 없음 - 로그아웃 처리");
-        logout();
+        clearUser();
         stopAutoRefresh();
         return;
       }
@@ -97,7 +106,7 @@ export default function AuthProvider({
 
     const timer = setTimeout(checkAuthState, 100);
     return () => clearTimeout(timer);
-  }, [hasHydrated, user, login, logout]);
+  }, [hasHydrated, user, login, clearUser]);
 
   // 컴포넌트 언마운트 시 타이머 정리
   useEffect(() => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,29 +24,35 @@ import NotificationSettings from "@/components/settings/NotificationSettings";
 import DangerZone from "@/components/settings/DangerZone";
 import { useAuthStore } from "@/stores/auth-store";
 
-// API 함수 import
+import { useCurrentUser } from "@/hooks/useUsers";
 import {
-  getMyProfile,
-  updateBasicProfile,
-  UserProfile,
-  UpdateBasicProfileData,
-  UpdateIdnameData,
-  updateIdname,
-  updateSocialProfile,
-  UpdateSocialProfileData,
-} from "@/lib/api/users";
-import { checkIdnameAvailable } from "@/lib/api/auth";
+  useUpdateBasicProfile,
+  useUpdateSocialProfile,
+  useUpdateIdname,
+  useUploadAvatar,
+  useDeleteAvatar,
+  useCheckIdname,
+} from "@/hooks/useUsers";
+
+import { getAvatarFallback, getAvatarUrl } from "@/lib/utils";
+import type { UserProfile } from "@/lib/api/users";
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const { hasHydrated } = useAuthStore();
 
-  const { updateUser: updateAuthUser } = useAuthStore();
+  // React Query 훅들 사용
+  const {
+    data: user,
+    isLoading: loading,
+    error,
+    refetch: loadProfile,
+  } = useCurrentUser();
 
-  // 사용자 프로필 상태
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const updateBasicMutation = useUpdateBasicProfile();
+  const updateSocialMutation = useUpdateSocialProfile();
+  const updateIdnameMutation = useUpdateIdname();
+  const uploadAvatarMutation = useUploadAvatar();
+  const deleteAvatarMutation = useDeleteAvatar();
 
   // 설정 상태
   const [settings, setSettings] = useState({
@@ -66,35 +71,17 @@ export default function SettingsPage() {
 
   // 임시 데이터
   const [tempData, setTempData] = useState<Partial<UserProfile>>({});
+  const [idnameInput, setIdnameInput] = useState("");
 
-  // 프로필 로드 함수
-  const loadProfile = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // ID명 중복 확인 (실시간)
+  const { data: idnameCheck } = useCheckIdname(idnameInput);
 
-      const profile = await getMyProfile();
-      setUser(profile);
-      setTempData(profile);
-    } catch (err) {
-      console.error("❌ 프로필 로드 실패:", err);
-
-      if (err instanceof Error && err.message.includes("로그인이 필요합니다")) {
-        router.push("/");
-        return;
-      }
-
-      setError(
-        err instanceof Error ? err.message : "프로필을 불러올 수 없습니다"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // user 데이터가 변경될 때 tempData 업데이트
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (user) {
+      setTempData(user);
+    }
+  }, [user]);
 
   // 편집 모드 토글
   const handleEdit = (section: keyof typeof isEditing) => {
@@ -104,22 +91,20 @@ export default function SettingsPage() {
       setTempData({ ...user });
     } else {
       setTempData({ ...user });
+      if (section === "idname") {
+        setIdnameInput(user.idname || "");
+      }
     }
     setIsEditing((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // 저장 처리 - TypeScript 오류 해결된 버전
+  // React Query로 저장 처리
   const handleSave = async (section: keyof typeof isEditing) => {
     if (!user) return;
 
     try {
-      setSaving(true);
-
-      // ✅ updatedProfile을 undefined로 초기화
-      let updatedProfile: UserProfile | undefined;
-
       if (section === "basic") {
-        const updateData: UpdateBasicProfileData = {};
+        const updateData: any = {};
         if (tempData.displayName !== user.displayName) {
           updateData.displayName = tempData.displayName;
         }
@@ -127,28 +112,26 @@ export default function SettingsPage() {
           updateData.bio = tempData.bio || undefined;
         }
 
-        updatedProfile = await updateBasicProfile(updateData);
+        await updateBasicMutation.mutateAsync(updateData);
       } else if (section === "idname") {
-        if (!tempData.idname) {
+        if (!idnameInput) {
           alert("ID를 입력해주세요");
           return;
         }
 
-        if (tempData.idname === user.idname) {
+        if (idnameInput === user.idname) {
           setIsEditing((prev) => ({ ...prev, [section]: false }));
           return;
         }
 
-        const availabilityCheck = await checkIdnameAvailable(tempData.idname);
-        if (!availabilityCheck.isAvailable) {
+        if (!idnameCheck?.isAvailable) {
           alert("이미 사용 중인 ID입니다");
           return;
         }
 
-        const updateData: UpdateIdnameData = { idname: tempData.idname };
-        updatedProfile = await updateIdname(updateData);
+        await updateIdnameMutation.mutateAsync({ idname: idnameInput });
       } else if (section === "social") {
-        const updateData: UpdateSocialProfileData = {};
+        const updateData: any = {};
         if (tempData.github !== user.github) {
           updateData.github = tempData.github || undefined;
         }
@@ -159,37 +142,14 @@ export default function SettingsPage() {
           updateData.website = tempData.website || undefined;
         }
 
-        updatedProfile = await updateSocialProfile(updateData);
+        await updateSocialMutation.mutateAsync(updateData);
       }
 
-      // ✅ updatedProfile이 존재할 때만 업데이트
-      if (updatedProfile) {
-        // 로컬 state 업데이트
-        setUser(updatedProfile);
-        setTempData(updatedProfile);
-
-        // AuthStore 업데이트
-        updateAuthUser({
-          id: updatedProfile.id,
-          email: updatedProfile.email,
-          displayName: updatedProfile.displayName,
-          idname: updatedProfile.idname,
-          avatarUrl: updatedProfile.avatarUrl,
-          bio: updatedProfile.bio,
-          status: updatedProfile.status,
-          emailVerified: updatedProfile.emailVerified,
-        });
-
-        console.log("✅ 프로필 업데이트 완료:", updatedProfile);
-
-        // 편집 모드 해제
-        setIsEditing((prev) => ({ ...prev, [section]: false }));
-      }
+      // 편집 모드 해제
+      setIsEditing((prev) => ({ ...prev, [section]: false }));
     } catch (err) {
-      console.error(`❌ ${section} 저장 실패:`, err);
+      console.error(`${section} 저장 실패:`, err);
       alert(err instanceof Error ? err.message : "저장에 실패했습니다");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -197,11 +157,36 @@ export default function SettingsPage() {
   const handleCancel = (section: keyof typeof isEditing) => {
     if (!user) return;
     setTempData({ ...user });
+    if (section === "idname") {
+      setIdnameInput(user.idname || "");
+    }
     setIsEditing((prev) => ({ ...prev, [section]: false }));
   };
 
+  // React Query로 아바타 업로드
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      await uploadAvatarMutation.mutateAsync(file);
+    } catch (err) {
+      console.error("아바타 업로드 실패:", err);
+      alert(
+        err instanceof Error ? err.message : "아바타 업로드에 실패했습니다"
+      );
+    }
+  };
+
+  // React Query로 아바타 삭제
+  const handleAvatarDelete = async () => {
+    try {
+      await deleteAvatarMutation.mutateAsync();
+    } catch (err) {
+      console.error("아바타 삭제 실패:", err);
+      alert(err instanceof Error ? err.message : "아바타 삭제에 실패했습니다");
+    }
+  };
+
   // 로딩 상태
-  if (loading) {
+  if (loading || !hasHydrated) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
@@ -221,10 +206,11 @@ export default function SettingsPage() {
                   프로필을 불러올 수 없습니다
                 </h3>
                 <p className="text-sm text-gray-600 mt-2">
-                  {error || "로그인이 필요하거나 서버에 문제가 발생했습니다"}
+                  {error?.message ||
+                    "로그인이 필요하거나 서버에 문제가 발생했습니다"}
                 </p>
               </div>
-              <Button onClick={loadProfile} className="mt-4">
+              <Button onClick={() => loadProfile()} className="mt-4">
                 다시 시도
               </Button>
             </CardContent>
@@ -246,11 +232,11 @@ export default function SettingsPage() {
                 <div className="relative group">
                   <Avatar className="w-24 h-24 ring-4 ring-white shadow-lg">
                     <AvatarImage
-                      src={user.avatarUrl || "/placeholder.svg"}
+                      src={getAvatarUrl(user.avatarUrl)}
                       alt="프로필"
                     />
                     <AvatarFallback className="text-xl font-semibold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                      {user.displayName.charAt(0)}
+                      {getAvatarFallback(user)}
                     </AvatarFallback>
                   </Avatar>
                 </div>
@@ -259,30 +245,21 @@ export default function SettingsPage() {
                 <div className="flex flex-col gap-2 w-full">
                   <label htmlFor="avatar-upload" className="cursor-pointer">
                     <div className="w-full px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors text-center">
-                      이미지 업로드
+                      {uploadAvatarMutation.isPending
+                        ? "업로드 중..."
+                        : "이미지 업로드"}
                     </div>
                     <input
                       id="avatar-upload"
                       type="file"
                       accept="image/*"
                       className="sr-only"
+                      disabled={uploadAvatarMutation.isPending}
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
                           const file = e.target.files[0];
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            if (event.target?.result) {
-                              setUser((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      avatarUrl: event.target?.result as string,
-                                    }
-                                  : null
-                              );
-                            }
-                          };
-                          reader.readAsDataURL(file);
+                          handleAvatarUpload(file);
+                          e.target.value = "";
                         }
                       }}
                     />
@@ -293,21 +270,17 @@ export default function SettingsPage() {
                       variant="outline"
                       size="sm"
                       className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-                      onClick={() => {
-                        if (confirm("프로필 이미지를 제거하시겠습니까?")) {
-                          setUser((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  avatarUrl: null,
-                                }
-                              : null
-                          );
-                        }
-                      }}
+                      onClick={handleAvatarDelete}
+                      disabled={deleteAvatarMutation.isPending}
                     >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      이미지 제거
+                      {deleteAvatarMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4 mr-2" />
+                      )}
+                      {deleteAvatarMutation.isPending
+                        ? "삭제 중..."
+                        : "이미지 제거"}
                     </Button>
                   )}
                 </div>
@@ -376,20 +349,20 @@ export default function SettingsPage() {
                       <Button
                         size="sm"
                         onClick={() => handleSave("basic")}
-                        disabled={saving}
+                        disabled={updateBasicMutation.isPending}
                       >
-                        {saving ? (
+                        {updateBasicMutation.isPending ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         ) : (
                           <Check className="w-4 h-4 mr-2" />
                         )}
-                        {saving ? "저장 중..." : "저장"}
+                        {updateBasicMutation.isPending ? "저장 중..." : "저장"}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleCancel("basic")}
-                        disabled={saving}
+                        disabled={updateBasicMutation.isPending}
                       >
                         <X className="w-4 h-4 mr-2" />
                         취소
@@ -441,17 +414,23 @@ export default function SettingsPage() {
                       </span>
                       <Input
                         id="idname"
-                        value={tempData.idname || ""}
-                        onChange={(e) =>
-                          setTempData((prev) => ({
-                            ...prev,
-                            idname: e.target.value,
-                          }))
-                        }
+                        value={idnameInput}
+                        onChange={(e) => setIdnameInput(e.target.value)}
                         className="bg-white pl-8"
                         placeholder="새로운 ID를 입력하세요"
                       />
                     </div>
+                    {idnameInput && idnameCheck && (
+                      <p
+                        className={`text-xs ${
+                          idnameCheck.isAvailable
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {idnameCheck.message}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500">
                       영문, 숫자, 밑줄(_)만 사용 가능합니다
                     </p>
@@ -460,20 +439,20 @@ export default function SettingsPage() {
                     <Button
                       size="sm"
                       onClick={() => handleSave("idname")}
-                      disabled={saving}
+                      disabled={updateIdnameMutation.isPending}
                     >
-                      {saving ? (
+                      {updateIdnameMutation.isPending ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
                         <Check className="w-4 h-4 mr-2" />
                       )}
-                      {saving ? "저장 중..." : "저장"}
+                      {updateIdnameMutation.isPending ? "저장 중..." : "저장"}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleCancel("idname")}
-                      disabled={saving}
+                      disabled={updateIdnameMutation.isPending}
                     >
                       <X className="w-4 h-4 mr-2" />
                       취소
@@ -589,20 +568,20 @@ export default function SettingsPage() {
                     <Button
                       size="sm"
                       onClick={() => handleSave("social")}
-                      disabled={saving}
+                      disabled={updateSocialMutation.isPending}
                     >
-                      {saving ? (
+                      {updateSocialMutation.isPending ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
                         <Check className="w-4 h-4 mr-2" />
                       )}
-                      {saving ? "저장 중..." : "저장"}
+                      {updateSocialMutation.isPending ? "저장 중..." : "저장"}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleCancel("social")}
-                      disabled={saving}
+                      disabled={updateSocialMutation.isPending}
                     >
                       <X className="w-4 h-4 mr-2" />
                       취소

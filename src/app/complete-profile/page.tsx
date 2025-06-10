@@ -13,29 +13,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/stores/auth-store";
-import { completeProfile, checkIdnameAvailable } from "@/lib/api/auth";
+import { useCompleteProfile } from "@/hooks/useAuth";
+import { useCheckIdname } from "@/hooks/useUsers";
 
 export default function CompleteProfilePage() {
   const router = useRouter();
-  const { user, updateUser, needsProfileSetup } = useAuthStore();
+  const { user, needsProfileSetup } = useAuthStore();
 
   const [idname, setIdname] = useState("");
   const [bio, setBio] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [idnameStatus, setIdnameStatus] = useState<
-    "idle" | "checking" | "available" | "taken"
-  >("idle");
   const [errors, setErrors] = useState<{ idname?: string; general?: string }>(
     {}
   );
+
+  // React Query 훅들 사용
+  const completeProfileMutation = useCompleteProfile();
+  const { data: idnameCheck, isLoading: isCheckingIdname } =
+    useCheckIdname(idname);
 
   // AuthProvider에서 이미 JWT 복원을 처리하므로 간단하게 처리
   useEffect(() => {
     setIsCheckingAuth(false);
   }, []);
 
-  // 인증 상태 확인 (AuthProvider에서 사용자 정보 복원 완료 후)
+  // 인증 상태 확인
   useEffect(() => {
     if (isCheckingAuth) return;
 
@@ -50,21 +52,20 @@ export default function CompleteProfilePage() {
     }
   }, [user, needsProfileSetup, router, isCheckingAuth]);
 
-  // 🔧 실제 API를 사용한 idname 중복 체크
+  // idname 유효성 검사 (React Query 결과 활용)
   useEffect(() => {
     if (idname.length < 2) {
-      setIdnameStatus("idle");
+      setErrors((prev) => ({ ...prev, idname: undefined }));
       return;
     }
 
     // 기본 유효성 검사
     const isValidFormat = /^[a-zA-Z0-9_-]+$/.test(idname);
     if (!isValidFormat) {
-      setIdnameStatus("idle");
-      setErrors({
-        ...errors,
+      setErrors((prev) => ({
+        ...prev,
         idname: "영문, 숫자, 언더스코어(_), 하이픈(-)만 사용 가능합니다",
-      });
+      }));
       return;
     }
 
@@ -79,104 +80,89 @@ export default function CompleteProfilePage() {
       "undefined",
     ];
     if (reservedWords.includes(idname.toLowerCase())) {
-      setIdnameStatus("taken");
-      setErrors({
-        ...errors,
+      setErrors((prev) => ({
+        ...prev,
         idname: "사용할 수 없는 사용자 ID입니다",
-      });
+      }));
       return;
     }
 
-    setErrors({ ...errors, idname: undefined });
-    setIdnameStatus("checking");
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        // 실제 백엔드 API 호출
-        const result = await checkIdnameAvailable(idname);
-
-        if (result.isAvailable) {
-          setIdnameStatus("available");
-          setErrors({ ...errors, idname: undefined });
-        } else {
-          setIdnameStatus("taken");
-          setErrors({
-            ...errors,
-            idname: result.message || "이미 사용 중인 사용자 ID입니다",
-          });
-        }
-      } catch (error) {
-        setIdnameStatus("idle");
-        setErrors({
-          ...errors,
-          idname: "ID 확인 중 오류가 발생했습니다",
-        });
+    // React Query에서 결과 받아서 처리
+    if (idnameCheck) {
+      if (idnameCheck.isAvailable) {
+        setErrors((prev) => ({ ...prev, idname: undefined }));
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          idname: idnameCheck.message || "이미 사용 중인 사용자 ID입니다",
+        }));
       }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [idname]);
+    }
+  }, [idname, idnameCheck]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 🔧 더 엄격한 검증
-    if (idnameStatus === "checking") {
-      setErrors({ ...errors, general: "ID 확인이 완료될 때까지 기다려주세요" });
+    // React Query 상태로 검증
+    if (isCheckingIdname) {
+      setErrors((prev) => ({
+        ...prev,
+        general: "ID 확인이 완료될 때까지 기다려주세요",
+      }));
       return;
     }
 
-    if (idnameStatus !== "available") {
-      setErrors({ ...errors, general: "사용 가능한 ID를 입력해주세요" });
+    if (!idnameCheck?.isAvailable) {
+      setErrors((prev) => ({
+        ...prev,
+        general: "사용 가능한 ID를 입력해주세요",
+      }));
       return;
     }
 
     if (!idname.trim()) {
-      setErrors({ ...errors, general: "사용자 ID를 입력해주세요" });
+      setErrors((prev) => ({ ...prev, general: "사용자 ID를 입력해주세요" }));
       return;
     }
 
-    setIsLoading(true);
     setErrors({});
 
     try {
-      // 최종 중복 체크 (제출 직전)
-      const finalCheck = await checkIdnameAvailable(idname);
+      // React Query mutation 사용
+      await completeProfileMutation.mutateAsync({ idname, bio });
 
-      if (!finalCheck.isAvailable) {
-        setErrors({
-          general: "다른 사용자가 방금 사용한 ID입니다. 다른 ID를 선택해주세요",
-        });
-        setIdnameStatus("taken");
-        return;
-      }
-
-      const result = await completeProfile({ idname, bio });
-
-      updateUser(result.user);
-
+      // 성공 시 홈으로 이동 (useCompleteProfile 훅에서 store 업데이트 처리)
       router.push("/");
     } catch (error) {
       setErrors({
         general:
           error instanceof Error ? error.message : "프로필 설정에 실패했습니다",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
+  // idname 상태 메시지 (React Query 상태 기반)
   const getIdnameStatusMessage = () => {
-    switch (idnameStatus) {
-      case "checking":
-        return { text: "서버에서 확인 중...", color: "text-blue-500" };
-      case "available":
-        return { text: "✅ 사용 가능한 ID입니다", color: "text-green-600" };
-      case "taken":
-        return null; // 에러 메시지에서 표시하므로 여기서는 제거
-      default:
-        return null;
+    if (idname.length < 2) return null;
+
+    if (isCheckingIdname) {
+      return { text: "서버에서 확인 중...", color: "text-blue-500" };
     }
+
+    if (idnameCheck?.isAvailable && !errors.idname) {
+      return { text: "사용 가능한 ID입니다", color: "text-green-600" };
+    }
+
+    return null; // 에러는 errors.idname에서 표시
+  };
+
+  // idname 상태 계산 (React Query 기반)
+  const getIdnameStatus = () => {
+    if (idname.length < 2) return "idle";
+    if (isCheckingIdname) return "checking";
+    if (errors.idname) return "taken";
+    if (idnameCheck?.isAvailable) return "available";
+    return "idle";
   };
 
   // 로딩 상태
@@ -203,6 +189,7 @@ export default function CompleteProfilePage() {
   }
 
   const statusMessage = getIdnameStatusMessage();
+  const idnameStatus = getIdnameStatus();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -225,7 +212,7 @@ export default function CompleteProfilePage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 🔧 사용자 ID 입력 개선 */}
+              {/* 사용자 ID 입력 */}
               <div>
                 <Label htmlFor="idname">사용자 ID *</Label>
                 <Input
@@ -239,7 +226,7 @@ export default function CompleteProfilePage() {
                   minLength={2}
                   maxLength={20}
                   autoComplete="username"
-                  disabled={isLoading}
+                  disabled={completeProfileMutation.isPending}
                   className={`mt-1 transition-colors ${
                     idnameStatus === "available"
                       ? "border-green-500 focus:border-green-500 bg-green-50"
@@ -276,7 +263,7 @@ export default function CompleteProfilePage() {
                   placeholder="당신을 한 줄로 소개해보세요 (선택사항)"
                   maxLength={100}
                   autoComplete="off"
-                  disabled={isLoading}
+                  disabled={completeProfileMutation.isPending}
                   className="mt-1"
                 />
                 <p className="text-xs text-gray-500 mt-1">{bio.length}/100자</p>
@@ -289,15 +276,24 @@ export default function CompleteProfilePage() {
                 </div>
               )}
 
+              {/* React Query 에러 표시 */}
+              {completeProfileMutation.error && (
+                <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded">
+                  {completeProfileMutation.error.message}
+                </div>
+              )}
+
               {/* 완료 버튼 */}
               <Button
                 type="submit"
                 className="w-full"
                 disabled={
-                  isLoading || idnameStatus !== "available" || !idname.trim()
+                  completeProfileMutation.isPending ||
+                  idnameStatus !== "available" ||
+                  !idname.trim()
                 }
               >
-                {isLoading ? (
+                {completeProfileMutation.isPending ? (
                   <div className="flex items-center space-x-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                     <span>설정 중...</span>

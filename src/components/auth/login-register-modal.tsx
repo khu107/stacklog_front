@@ -25,32 +25,24 @@ interface LoginModalProps {
 export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGoogleLogin = () => {
+  // ✅ 개별 함수들을 하나로 통합
+  const handleSocialLogin = (provider: "google" | "naver" | "github") => {
     setIsLoading(true);
-    startGoogleLogin();
-  };
 
-  const handleNaverLogin = () => {
-    setIsLoading(true);
-    startNaverLogin();
-  };
-
-  const handleGithubLogin = () => {
-    setIsLoading(true);
-    startGithubLogin();
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    if (provider === "google") {
-      handleGoogleLogin();
-    } else if (provider === "naver") {
-      handleNaverLogin();
-    } else if (provider === "github") {
-      // 🆕 깃허브 로그인 추가
-      handleGithubLogin();
-    } else {
-      console.log(`${provider} 로그인 - 아직 구현 안됨`);
-      alert("아직 구현되지 않은 로그인 방식입니다.");
+    switch (provider) {
+      case "google":
+        startGoogleLogin();
+        break;
+      case "naver":
+        startNaverLogin();
+        break;
+      case "github":
+        startGithubLogin();
+        break;
+      default:
+        console.log(`${provider} 로그인 - 지원하지 않는 제공자`);
+        alert("지원하지 않는 로그인 방식입니다.");
+        setIsLoading(false);
     }
   };
 
@@ -67,7 +59,6 @@ export default function LoginModal({ open, onOpenChange }: LoginModalProps) {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* 소셜 로그인 */}
           <div className="space-y-3">
             <Button
               variant="outline"

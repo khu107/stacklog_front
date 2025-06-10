@@ -1,4 +1,3 @@
-// src/app/page.tsx (정리된 버전 - 순수 콘텐츠 표시)
 "use client";
 
 import { Suspense } from "react";
