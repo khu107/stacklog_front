@@ -15,6 +15,17 @@ export interface UserProfile {
   emailVerified: boolean;
 }
 
+export interface PublicUserProfile {
+  id: number;
+  displayName: string;
+  idname: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  github: string | null;
+  linkedin: string | null;
+  website: string | null;
+}
+
 export interface UpdateBasicProfileData {
   displayName?: string;
   bio?: string;
@@ -36,7 +47,7 @@ export function hasAuthCookies(): boolean {
   return cookies.some((c) => c.startsWith("accessToken="));
 }
 
-// 🔥 React Query용 API 함수들
+// React Query용 API 함수들
 export const userApi = {
   // 현재 사용자 정보 가져오기
   getCurrentUser: (): Promise<UserProfile> =>
@@ -44,6 +55,15 @@ export const userApi = {
       credentials: "include",
     }).then((res) => {
       if (!res.ok) throw new Error("사용자 정보를 가져올 수 없습니다");
+      return res.json();
+    }),
+
+  // 다른 사용자 프로필 가져오기
+  getUserProfile: (idname: string): Promise<PublicUserProfile> =>
+    fetch(`${API_BASE_URL}/users/${idname}/profile`, {
+      credentials: "include",
+    }).then((res) => {
+      if (!res.ok) throw new Error("사용자 프로필을 가져올 수 없습니다");
       return res.json();
     }),
 
@@ -122,12 +142,11 @@ export const userApi = {
       // 클라이언트 스토리지 정리
       localStorage.clear();
       sessionStorage.clear();
-      console.log("✅ 클라이언트 스토리지 정리 완료");
 
       return res.json();
     }),
 };
 
-// 🔄 기존 함수명 호환성을 위한 별칭들 (필요시)
+// 기존 함수명 호환성을 위한 별칭들 (필요시)
 export const getCurrentUser = userApi.getCurrentUser;
 export const getMyProfile = userApi.getCurrentUser;

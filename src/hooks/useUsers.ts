@@ -11,6 +11,7 @@ import {
   type UpdateBasicProfileData,
   type UpdateSocialProfileData,
   type UpdateIdnameData,
+  PublicUserProfile,
 } from "@/lib/api/users";
 import { useAuthStore } from "@/stores/auth-store";
 import { authApi } from "@/lib/api/auth";
@@ -27,6 +28,20 @@ export const useCurrentUser = (): UseQueryResult<UserProfile, Error> => {
     retry: 1,
     staleTime: 5 * 60 * 1000,
     initialData: undefined,
+    refetchOnWindowFocus: false,
+  });
+};
+
+// 다른 사용자 프로필 조회
+export const useGetUserProfile = (
+  idname: string
+): UseQueryResult<PublicUserProfile, Error> => {
+  return useQuery<PublicUserProfile, Error>({
+    queryKey: ["userProfile", idname],
+    queryFn: () => userApi.getUserProfile(idname),
+    enabled: !!idname,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 };

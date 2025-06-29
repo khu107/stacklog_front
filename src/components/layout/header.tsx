@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Bell, PenSquare } from "lucide-react";
+import { Bell, PenSquare, Search } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
@@ -47,26 +47,34 @@ export default function Header() {
               <span className="sr-only">알림</span>
             </Button>
 
-            {/* 🔧 Hydration 완료 후에만 인증 UI 표시 */}
+            {/* Search Icon */}
+            <Link href="/search">
+              <Button variant="ghost" size="icon">
+                <Search className="h-5 w-5" />
+                <span className="sr-only">검색</span>
+              </Button>
+            </Link>
+
+            {/* Hydration 완료 후에만 인증 UI 표시 */}
             {showAuthUI ? (
               userLoggedIn ? (
-                // ✅ 로그인 후 UI
                 <>
                   {/* 글쓰기 버튼 */}
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="hidden sm:flex"
-                  >
-                    <PenSquare className="mr-2 h-4 w-4" />
-                    글쓰기
-                  </Button>
+                  <Link href="/write">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="hidden sm:flex"
+                    >
+                      <PenSquare className="mr-2 h-4 w-4" />
+                      글쓰기
+                    </Button>
+                  </Link>
 
                   {/* 사용자 드롭다운 */}
                   <UserDropdown />
                 </>
               ) : (
-                // ❌ 로그인 전 UI
                 <Button
                   variant="default"
                   size="sm"
@@ -76,7 +84,7 @@ export default function Header() {
                 </Button>
               )
             ) : (
-              // ⏳ Hydration 중 - 로딩 상태
+              // Hydration 중 - 로딩 상태
               <div className="w-16 h-8 bg-gray-200 animate-pulse rounded-md" />
             )}
           </div>

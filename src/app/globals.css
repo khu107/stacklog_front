@@ -120,3 +120,51 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .cm-editor,
+  .cm-editor.cm-focused,
+  .cm-editor:focus,
+  .cm-editor:focus-visible,
+  .cm-editor:focus-within {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .cm-content,
+  .cm-content.cm-focused {
+    outline: none !important;
+    border: none !important;
+  }
+
+  .cm-editor *[class*="heading"],
+  .cm-content *[class*="heading"],
+  .cm-line *[class*="heading"],
+  .cm-content .ͼ1,
+  .cm-content .ͼ2,
+  .cm-content .ͼ3,
+  .cm-content .ͼ4,
+  .cm-content .ͼ5,
+  .cm-content .ͼ6,
+  .cm-content .ͼ7,
+  .cm-content .ͼ8,
+  .cm-content .ͼ9 {
+    text-decoration: none !important;
+    border-bottom: none !important;
+  }
+
+  .cm-scroller {
+    outline: none !important;
+    border: none !important;
+  }
+
+  /* 포커스 상태의 모든 가능한 셀렉터 */
+  .cm-focused,
+  .cm-focused .cm-content,
+  .cm-editor.cm-focused .cm-content {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

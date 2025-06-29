@@ -19,7 +19,10 @@ export default function RootLayout({
   const { user } = useAuthStore();
 
   const hideHeader =
-    pathname === "/complete-profile" || user?.status === "pending";
+    pathname === "/complete-profile" ||
+    pathname === "/write" ||
+    user?.status === "pending";
+
   return (
     <html lang="ko">
       <body className={inter.className}>
