@@ -6,7 +6,6 @@ import { usePublicPosts } from "@/hooks/usePosts";
 
 function HomeContent() {
   const { data: posts, isLoading, error } = usePublicPosts();
-  console.log(posts);
 
   if (isLoading) {
     return (
@@ -48,13 +47,13 @@ function HomeContent() {
       <div className="container mx-auto px-4 py-6">
         <h1 className="text-3xl font-bold mb-8">블로그 포스트</h1>
 
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {posts.map((post) => (
             <PostCard
               key={post.id}
               post={post}
               onClick={() => {
-                window.location.href = `/${post.author.idname}/${post.slug}`;
+                window.location.href = `/@${post.author.idname}/${post.slug}`;
               }}
               // 임시 랜덤 값들 (나중에 실제 데이터로 교체)
               likes={Math.floor(Math.random() * 100)}

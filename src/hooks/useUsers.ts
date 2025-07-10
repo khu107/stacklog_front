@@ -59,7 +59,6 @@ export const useUploadAvatar = (): UseMutationResult<
   return useMutation<{ message: string; avatarUrl: string }, Error, File>({
     mutationFn: userApi.uploadAvatar,
     onSuccess: (data: { message: string; avatarUrl: string }) => {
-      // React Query 캐시와 Zustand store 모두 업데이트
       queryClient.setQueryData<UserProfile>(["currentUser"], (oldData) => {
         if (oldData) {
           const updatedUser: UserProfile = {
@@ -75,7 +74,7 @@ export const useUploadAvatar = (): UseMutationResult<
       console.log("아바타 업로드 성공:", data.avatarUrl);
     },
     onError: (error: Error) => {
-      console.error(" 아바타 업로드 실패:", error);
+      console.error("아바타 업로드 실패:", error);
     },
   });
 };
@@ -98,8 +97,6 @@ export const useDeleteAvatar = (): UseMutationResult<
 
       // Zustand store 업데이트
       updateUser(updatedUser);
-
-      console.log("✅ 아바타 삭제 성공");
     },
     onError: (error: Error) => {
       console.error("아바타 삭제 실패:", error);
@@ -122,7 +119,6 @@ export const useUpdateBasicProfile = (): UseMutationResult<
     onSuccess: (updatedUser: UserProfile) => {
       queryClient.setQueryData<UserProfile>(["currentUser"], updatedUser);
       updateUser(updatedUser);
-      console.log("기본 정보 수정 성공");
     },
     onError: (error: Error) => {
       console.error("기본 정보 수정 실패:", error);

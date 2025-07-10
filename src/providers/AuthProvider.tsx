@@ -14,7 +14,7 @@ export default function AuthProvider({
   const { login, clearUser, hasHydrated, user } = useAuthStore();
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // ✅ React Query 훅들 사용
+  // React Query 훅들 사용
   const { refetch: fetchCurrentUser } = useCurrentUser();
   const refreshTokenMutation = useRefreshToken();
 
@@ -25,29 +25,36 @@ export default function AuthProvider({
       clearInterval(refreshIntervalRef.current);
     }
 
+    console.log("🔄 18분 자동 갱신 타이머 시작");
+
     // 14분마다 토큰 갱신 (15분 만료 전에)
     refreshIntervalRef.current = setInterval(async () => {
+      console.log("⏰ 18분 경과! 토큰 갱신 시도");
       if (!hasAuthCookies()) {
+        console.log("❌ 쿠키 없음 - 갱신 중단");
         clearUser();
         stopAutoRefresh();
         return;
       }
 
       try {
-        // ✅ React Query mutation 사용
+        // React Query mutation 사용
+        console.log("🔄 refreshToken API 호출...");
         await refreshTokenMutation.mutateAsync();
         console.log("토큰 자동 갱신 성공");
       } catch (error) {
-        console.error("토큰 갱신 실패:", error);
+        console.error("❌ 토큰 갱신 실패:", error);
+        console.log("❌ 갱신 실패로 로그아웃 처리");
         clearUser();
         stopAutoRefresh();
       }
-    }, 14 * 60 * 1000); // 14분마다
+    }, 18 * 60 * 1000); // 18 분마다
   };
 
   // 자동 갱신 중지
   const stopAutoRefresh = () => {
     if (refreshIntervalRef.current) {
+      console.log("⏸️ 자동 갱신 타이머 중단");
       clearInterval(refreshIntervalRef.current);
       refreshIntervalRef.current = null;
     }
@@ -75,10 +82,11 @@ export default function AuthProvider({
 
     const checkAuthState = async () => {
       const hasCookies = hasAuthCookies();
+      console.log("🔍 인증 상태 체크 - 쿠키:", hasCookies, "사용자:", !!user);
 
       // 쿠키가 없는데 user가 있으면 로그아웃
       if (!hasCookies && user) {
-        console.log("쿠키 없음 - 로그아웃 처리");
+        console.log("🚪 쿠키 없음 + 사용자 있음 = 로그아웃");
         clearUser();
         stopAutoRefresh();
         return;
@@ -86,20 +94,21 @@ export default function AuthProvider({
 
       // 쿠키도 있고 user도 있으면 그대로 유지
       if (hasCookies && user) {
-        console.log("인증 상태 유지");
+        console.log("✨ 정상 상태 - 자동 갱신 시작");
         setupAutoRefresh();
         return;
       }
 
       // 쿠키는 있는데 user가 없으면 복원
       if (hasCookies && !user) {
-        console.log("쿠키 있음 - 사용자 정보 복원 시도");
+        console.log("🔄 쿠키 있음 + 사용자 없음 = 복원 시도");
         await restoreUserFromCookie();
         return;
       }
 
       // 쿠키도 없고 user도 없으면 → 정상 (로그인 안된 상태)
       if (!hasCookies && !user) {
+        console.log("😐 로그아웃 상태");
         stopAutoRefresh();
       }
     };

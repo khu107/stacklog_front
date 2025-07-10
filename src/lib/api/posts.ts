@@ -50,6 +50,7 @@ export interface ImageUploadResponse {
   url: string;
   originalName: string;
   size: number;
+  type?: string;
 }
 
 export interface SearchParams {
@@ -158,6 +159,20 @@ export const postsApi = {
       body: formData,
     }).then((res) => {
       if (!res.ok) throw new Error("이미지 업로드에 실패했습니다");
+      return res.json();
+    });
+  },
+
+  uploadThumbnail: (file: File): Promise<ImageUploadResponse> => {
+    const formData = new FormData();
+    formData.append("thumbnail", file);
+
+    return fetch(`${API_BASE_URL}/posts/upload-thumbnail`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    }).then((res) => {
+      if (!res.ok) throw new Error("썸네일 업로드에 실패했습니다");
       return res.json();
     });
   },

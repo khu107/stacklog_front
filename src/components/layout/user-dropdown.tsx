@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { useRouter } from "next/navigation";
-import { getAvatarFallback, getAvatarUrl } from "@/lib/utils";
+import { getAvatarUrl } from "@/lib/utils";
 import { useLogout } from "@/hooks/useAuth";
 
 export default function UserDropdown() {
@@ -65,8 +65,11 @@ export default function UserDropdown() {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
             <AvatarImage src={getAvatarUrl(user.avatarUrl)} alt="프로필" />
-            <AvatarFallback className="text-xl font-semibold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-              {getAvatarFallback(user)}
+            <AvatarFallback>
+              <User
+                className="text-black"
+                style={{ width: "50%", height: "50%" }}
+              />
             </AvatarFallback>
           </Avatar>
         </Button>

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Upload, X } from "lucide-react";
-import { useUploadImage } from "@/hooks/usePosts";
+import { useUploadThumbnail } from "@/hooks/usePosts"; // 🔥 변경된 부분
 
 interface PublishModalProps {
   isOpen: boolean;
@@ -39,14 +39,16 @@ export default function PublishModal({
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 🔥 React Query 이미지 업로드 훅 (한 번만 선언)
-  const { mutate: uploadImage, isPending: isUploading } = useUploadImage();
+  // 🔥 썸네일 전용 업로드 훅 사용
+  const { mutate: uploadThumbnail, isPending: isUploading } =
+    useUploadThumbnail();
 
   // 썸네일 파일 업로드
   const handleThumbnailUpload = (file: File) => {
-    uploadImage(file, {
+    uploadThumbnail(file, {
       onSuccess: (data) => {
         console.log("✅ 썸네일 업로드 성공:", data);
+        console.log("📝 응답 타입:", data.type); // 'thumbnail' 확인
 
         // 🔥 full URL 생성
         const fullUrl = data.url.startsWith("http")
@@ -175,7 +177,7 @@ export default function PublishModal({
                 <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                 <p className="text-sm text-gray-600">
                   {isUploading
-                    ? "업로드 중..."
+                    ? "썸네일 업로드 중..."
                     : "클릭해서 썸네일을 업로드하세요"}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">

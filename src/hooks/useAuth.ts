@@ -48,6 +48,7 @@ export const useRefreshToken = (): UseMutationResult<
     },
     onError: (error: Error) => {
       console.error("토큰 갱신 실패:", error);
+      console.error("❌ useRefreshToken 실패:", error.message);
     },
   });
 };

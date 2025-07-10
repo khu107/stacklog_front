@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
-import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { EditorView } from "@codemirror/view";
 import { EditorSelection } from "@codemirror/state";
 import { Eye, Edit3 } from "lucide-react";
 import MarkdownToolbar from "./MarkdownToolbar";
 import MarkdownPreview from "./MarkdownPreview";
+import {
+  markdownEditorExtensions,
+  commonBasicSetup,
+} from "@/lib/codemirror-extensions";
 
 interface MarkdownEditorProps {
   value: string;
@@ -24,76 +26,6 @@ export default function MarkdownEditor({
   theme = "light",
 }: MarkdownEditorProps) {
   const editorRef = useRef<any>(null);
-
-  // 에디터 확장 설정
-  const extensions = [
-    markdown(),
-    EditorView.theme({
-      "&": {
-        fontSize: "16px",
-        fontFamily:
-          'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-      },
-      ".cm-content": {
-        padding: "16px",
-        minHeight: "500px",
-        caretColor: "#20b2aa",
-      },
-      ".cm-focused": {
-        outline: "none",
-      },
-      ".cm-editor": {
-        borderRadius: "8px",
-      },
-      ".cm-scroller": {
-        fontFamily: "inherit",
-      },
-      "&.cm-focused .cm-content": {
-        outline: "none",
-      },
-      // 마크다운 문법 하이라이팅
-      ".cm-line": {
-        lineHeight: "1.6",
-      },
-      // 헤딩 스타일
-      ".cm-content .tok-heading1": {
-        fontSize: "2em",
-        fontWeight: "bold",
-        color: "#1a202c",
-      },
-      ".cm-content .tok-heading2": {
-        fontSize: "1.5em",
-        fontWeight: "bold",
-        color: "#2d3748",
-      },
-      ".cm-content .tok-heading3": {
-        fontSize: "1.25em",
-        fontWeight: "bold",
-        color: "#4a5568",
-      },
-      // 코드 블록 스타일
-      ".cm-content .tok-code": {
-        backgroundColor: "#f7fafc",
-        padding: "2px 4px",
-        borderRadius: "4px",
-        fontFamily: "monospace",
-      },
-      // 링크 스타일
-      ".cm-content .tok-link": {
-        color: "#3182ce",
-        textDecoration: "underline",
-      },
-      // 볼드 스타일
-      ".cm-content .tok-strong": {
-        fontWeight: "bold",
-      },
-      // 이탤릭 스타일
-      ".cm-content .tok-emphasis": {
-        fontStyle: "italic",
-      },
-    }),
-    EditorView.lineWrapping,
-  ];
 
   // 툴바에서 마크다운 삽입
   const handleInsert = useCallback((markdownText: string) => {
@@ -133,22 +65,11 @@ export default function MarkdownEditor({
             ref={editorRef}
             value={value}
             onChange={onChange}
-            extensions={extensions}
+            extensions={markdownEditorExtensions}
             theme={theme === "dark" ? oneDark : undefined}
             placeholder={placeholder}
             height="100%"
-            basicSetup={{
-              lineNumbers: false,
-              foldGutter: false,
-              dropCursor: false,
-              allowMultipleSelections: false,
-              indentOnInput: true,
-              bracketMatching: true,
-              closeBrackets: true,
-              autocompletion: true,
-              highlightSelectionMatches: false,
-              searchKeymap: true,
-            }}
+            basicSetup={commonBasicSetup}
           />
         </div>
       </div>

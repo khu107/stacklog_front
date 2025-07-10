@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const getAvatarUrl = (avatarUrl: string | null): string => {
-  if (!avatarUrl) return "/placeholder.svg";
+  if (!avatarUrl) return "";
   if (avatarUrl.startsWith("http")) return avatarUrl;
 
   const baseUrl =
@@ -14,26 +14,12 @@ export const getAvatarUrl = (avatarUrl: string | null): string => {
   return `${baseUrl}${avatarUrl}`;
 };
 
-export const getAvatarFallback = (user: {
-  displayName?: string;
-  email?: string;
-}): string => {
-  if (user.displayName && user.displayName.trim()) {
-    return user.displayName.charAt(0).toUpperCase();
-  }
-  if (user.email && user.email.trim()) {
-    return user.email.charAt(0).toUpperCase();
-  }
-  return "U";
-};
-
-// 이미지 URL 처리 - null을 반환할 수 있도록 수정
+// 이미지 URL 처리 - null을 반환할 수 있도록
 export const getImageUrl = (
   imagePath: string | null | undefined
 ): string | null => {
-  if (!imagePath) return null; // null, undefined, 빈 문자열 모두 null 반환
+  if (!imagePath) return null;
 
-  // 이미 완전한 URL인 경우
   if (imagePath.startsWith("http")) {
     return imagePath;
   }
@@ -41,10 +27,12 @@ export const getImageUrl = (
   const baseUrl =
     process.env.NEXT_PUBLIC_IMAGE_BASE_URL || "http://localhost:3000";
 
-  // 앞의 /를 제거하고 baseUrl과 합치기
   const cleanPath = imagePath.replace(/^\/+/, "");
 
-  return `${baseUrl}/${cleanPath}`;
+  // URL 인코딩 추가
+  const encodedPath = encodeURI(cleanPath);
+
+  return `${baseUrl}/${encodedPath}`;
 };
 
 // 기본 이미지가 필요한 경우를 위한 함수

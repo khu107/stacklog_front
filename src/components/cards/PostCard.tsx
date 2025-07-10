@@ -1,7 +1,14 @@
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Heart, Calendar, MessageCircle, Eye, FileImage } from "lucide-react";
+import {
+  Heart,
+  Calendar,
+  MessageCircle,
+  Eye,
+  FileImage,
+  User,
+} from "lucide-react";
 import { useState } from "react";
 
 import { Post } from "@/lib/api/posts";
@@ -90,7 +97,7 @@ export function PostCard({
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow p-0">
+    <Card className=" h-96 sm:w-full md:w-90 lg:w-80 xl:w-72 2xl:w-72 overflow-hidden hover:shadow-lg transition-shadow p-0">
       <div className="w-full h-64 relative cursor-pointer overflow-hidden">
         <SafePostImage
           thumbnail={post.thumbnail}
@@ -101,7 +108,7 @@ export function PostCard({
 
       <CardHeader className="px-6">
         <h3
-          className="font-semibold text-lg leading-tight hover:text-primary cursor-pointer truncate"
+          className="font-semibold text-lg leading-tight  hover:text-primary cursor-pointer truncate"
           onClick={onClick}
           title={post.title}
         >
@@ -109,7 +116,7 @@ export function PostCard({
         </h3>
       </CardHeader>
 
-      <CardContent className="pt-0 px-6 pb-6">
+      <CardContent className="pt-1 px-6 pb-6">
         <div
           className="text-muted-foreground text-sm mb-4 h-[4.5rem] cursor-pointer leading-relaxed overflow-hidden"
           onClick={onClick}
@@ -129,8 +136,11 @@ export function PostCard({
                 src={getImageUrl(post.author.avatarUrl || null) || undefined}
                 alt={post.author.displayName}
               />
-              <AvatarFallback className="text-xs">
-                {post.author.displayName.charAt(0).toUpperCase()}
+              <AvatarFallback>
+                <User
+                  className=" text-black"
+                  style={{ width: "60%", height: "60%" }}
+                />
               </AvatarFallback>
             </Avatar>
             <span>{post.author.displayName}</span>

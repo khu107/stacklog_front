@@ -28,11 +28,14 @@ export const usePublicPosts = (): UseQueryResult<Post[], Error> => {
 };
 
 // 🔍 글 상세 조회 (slug로)
-export const usePostBySlug = (slug: string): UseQueryResult<Post, Error> => {
+export const usePostBySlug = (
+  slug: string,
+  enabled: boolean = true
+): UseQueryResult<Post, Error> => {
   return useQuery<Post, Error>({
     queryKey: ["post", slug],
     queryFn: () => postsApi.getPostBySlug(slug),
-    enabled: !!slug,
+    enabled: !!slug && enabled,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
@@ -43,7 +46,7 @@ export const useMyPosts = (): UseQueryResult<Post[], Error> => {
   return useQuery<Post[], Error>({
     queryKey: ["myPosts"],
     queryFn: postsApi.getMyPosts,
-    staleTime: 2 * 60 * 1000, // 2분 (개인 글은 자주 변경될 수 있음)
+    staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 };
@@ -53,7 +56,7 @@ export const useMyDrafts = (): UseQueryResult<Post[], Error> => {
   return useQuery<Post[], Error>({
     queryKey: ["myDrafts"],
     queryFn: postsApi.getMyDrafts,
-    staleTime: 1 * 60 * 1000, // 1분 (임시저장은 자주 변경)
+    staleTime: 1 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 };
@@ -70,8 +73,8 @@ export const useCreatePost = (): UseMutationResult<
   return useMutation<Post, Error, CreatePostData>({
     mutationFn: postsApi.createPost,
     onSuccess: (newPost: Post) => {
-      // 📝 성공 시 관련 캐시들 업데이트
-      console.log("✅ 서버 응답 데이터:", newPost);
+      // 성공 시 관련 캐시들 업데이트
+      console.log("서버 응답 데이터:", newPost);
       // 1. 공개 글이면 공개 목록에 추가
       if (newPost.status === "published" && !newPost.isPrivate) {
         queryClient.setQueryData<Post[]>(["publicPosts"], (oldData) => {
@@ -113,7 +116,7 @@ export const useCreatePost = (): UseMutationResult<
   });
 };
 
-// ✏️ 글 수정
+// 글 수정
 export const useUpdatePost = (): UseMutationResult<
   Post,
   Error,
@@ -125,7 +128,7 @@ export const useUpdatePost = (): UseMutationResult<
   return useMutation<Post, Error, { id: number; data: UpdatePostData }>({
     mutationFn: ({ id, data }) => postsApi.updatePost(id, data),
     onSuccess: (updatedPost: Post) => {
-      // 📝 수정된 글 캐시 업데이트
+      // 수정된 글 캐시 업데이트
 
       // 1. 개별 글 캐시 업데이트
       queryClient.setQueryData(["post", updatedPost.slug], updatedPost);
@@ -142,10 +145,10 @@ export const useUpdatePost = (): UseMutationResult<
         });
       });
 
-      console.log("✅ 글 수정 성공:", updatedPost.title);
+      console.log("글 수정 성공:", updatedPost.title);
     },
     onError: (error: Error) => {
-      console.error("❌ 글 수정 실패:", error);
+      console.error("글 수정 실패:", error);
     },
   });
 };
@@ -162,7 +165,7 @@ export const useDeletePost = (): UseMutationResult<
   return useMutation<{ message: string }, Error, number>({
     mutationFn: postsApi.deletePost,
     onSuccess: (data, deletedPostId) => {
-      // 📝 삭제된 글을 모든 캐시에서 제거
+      // 삭제된 글을 모든 캐시에서 제거
 
       ["publicPosts", "myPosts", "myDrafts"].forEach((queryKey) => {
         queryClient.setQueryData<Post[]>([queryKey], (oldData) => {
@@ -184,7 +187,7 @@ export const useDeletePost = (): UseMutationResult<
   });
 };
 
-// 이미지 업로드
+// 📷 포스트 이미지 업로드 (콘텐츠 내 이미지용)
 export const useUploadImage = (): UseMutationResult<
   ImageUploadResponse,
   Error,
@@ -198,6 +201,24 @@ export const useUploadImage = (): UseMutationResult<
     },
     onError: (error: Error) => {
       console.error("이미지 업로드 실패:", error);
+    },
+  });
+};
+
+// 🖼️ 썸네일 이미지 업로드 (썸네일 전용)
+export const useUploadThumbnail = (): UseMutationResult<
+  ImageUploadResponse,
+  Error,
+  File,
+  unknown
+> => {
+  return useMutation<ImageUploadResponse, Error, File>({
+    mutationFn: postsApi.uploadThumbnail,
+    onSuccess: (data: ImageUploadResponse) => {
+      console.log("썸네일 업로드 성공:", data.url, "타입:", data.type);
+    },
+    onError: (error: Error) => {
+      console.error("썸네일 업로드 실패:", error);
     },
   });
 };

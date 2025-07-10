@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, X } from "lucide-react";
 import CodeMirror from "@uiw/react-codemirror";
-import { markdown } from "@codemirror/lang-markdown";
-import { EditorView } from "@codemirror/view";
 import { EditorSelection } from "@codemirror/state";
 import MarkdownToolbar from "@/components/write/MarkdownToolbar";
 import MarkdownPreview from "@/components/write/MarkdownPreview";
 import PublishModal, { PublishData } from "@/components/write/PublishModal";
 import { useCreatePost } from "@/hooks/usePosts";
 import { useAuthStore } from "@/stores/auth-store";
+import {
+  writePageExtensions,
+  commonBasicSetup,
+} from "@/lib/codemirror-extensions";
 
 export default function WritePage() {
   const router = useRouter();
@@ -26,22 +28,22 @@ export default function WritePage() {
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const editorRef = useRef<any>(null);
 
-  // 🔐 인증 체크
+  // 인증 체크
   useEffect(() => {
     if (hasHydrated && !isAuthenticated()) {
-      router.replace("/"); // 홈으로 리다이렉트
+      router.replace("/");
       return;
     }
   }, [hasHydrated, isAuthenticated, router]);
 
-  // 🔥 React Query 훅 사용
+  //  React Query 훅 사용
   const {
     mutate: createPost,
     isPending: isCreating,
     error: createError,
   } = useCreatePost();
 
-  // 🛡️ 인증되지 않은 사용자 또는 user 정보 로딩 중
+  // 인증되지 않은 사용자 또는 user 정보 로딩 중
   if (!hasHydrated || !isAuthenticated() || !user || !user.idname) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -60,56 +62,6 @@ export default function WritePage() {
       </div>
     );
   }
-
-  const extensions = [
-    markdown(),
-    EditorView.theme({
-      "&": {
-        fontSize: "16px",
-        fontFamily:
-          'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-      },
-      ".cm-content": {
-        padding: "0px 3rem",
-        caretColor: "#20b2aa",
-      },
-      ".cm-line": {
-        lineHeight: "1.6",
-      },
-      ".cm-content .tok-heading1": {
-        fontSize: "2em",
-        fontWeight: "bold",
-        color: "#1a202c",
-      },
-      ".cm-content .tok-heading2": {
-        fontSize: "1.5em",
-        fontWeight: "bold",
-        color: "#2d3748",
-      },
-      ".cm-content .tok-heading3": {
-        fontSize: "1.25em",
-        fontWeight: "bold",
-        color: "#4a5568",
-      },
-      ".cm-content .tok-code": {
-        backgroundColor: "#f7fafc",
-        padding: "2px 4px",
-        borderRadius: "4px",
-        fontFamily: "monospace",
-      },
-      ".cm-content .tok-link": {
-        color: "#3182ce",
-        textDecoration: "underline",
-      },
-      ".cm-content .tok-strong": {
-        fontWeight: "bold",
-      },
-      ".cm-content .tok-emphasis": {
-        fontStyle: "italic",
-      },
-    }),
-    EditorView.lineWrapping,
-  ];
 
   // 태그 처리
   const handleTagInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -149,7 +101,7 @@ export default function WritePage() {
     view.focus();
   }, []);
 
-  // 🔥 임시저장 - React Query 사용
+  //  임시저장 - React Query 사용
   const handleSaveDraft = () => {
     if (!title.trim()) {
       alert("제목을 입력해주세요.");
@@ -166,10 +118,7 @@ export default function WritePage() {
       {
         onSuccess: (data) => {
           alert("임시저장되었습니다!");
-          console.log("✅ 임시저장 성공:", data);
-
-          // 필요시 임시저장 목록 페이지로 이동
-          // router.push('/write/drafts');
+          console.log("임시저장 성공:", data);
         },
         onError: (error) => {
           alert("임시저장에 실패했습니다.");
@@ -194,7 +143,7 @@ export default function WritePage() {
     setIsPublishModalOpen(true);
   };
 
-  // 🔥 실제 출간 처리 - React Query 사용
+  // 실제 출간 처리 - React Query 사용
   const handlePublish = (publishData: PublishData) => {
     createPost(
       {
@@ -212,11 +161,10 @@ export default function WritePage() {
           // 모달 닫기
           setIsPublishModalOpen(false);
 
-          // 🔥 잠시 후 이동 (React 상태 업데이트 완료 대기)
+          // 잠시 후 이동 (React 상태 업데이트 완료 대기)
           setTimeout(() => {
             if (user.idname) {
               const targetUrl = `/@${user.idname}/${data.slug}`;
-
               router.push(targetUrl);
             } else {
               router.push("/");
@@ -327,22 +275,11 @@ export default function WritePage() {
               ref={editorRef}
               value={content}
               onChange={setContent}
-              extensions={extensions}
+              extensions={writePageExtensions}
               placeholder="당신의 이야기를 적어보세요..."
               height="100%"
               editable={!isCreating}
-              basicSetup={{
-                lineNumbers: false,
-                foldGutter: false,
-                dropCursor: false,
-                allowMultipleSelections: false,
-                indentOnInput: true,
-                bracketMatching: true,
-                closeBrackets: true,
-                autocompletion: true,
-                highlightSelectionMatches: false,
-                searchKeymap: true,
-              }}
+              basicSetup={commonBasicSetup}
             />
           </div>
 

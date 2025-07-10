@@ -33,8 +33,8 @@ import {
   useDeleteAvatar,
   useCheckIdname,
 } from "@/hooks/useUsers";
-
-import { getAvatarFallback, getAvatarUrl } from "@/lib/utils";
+import { User } from "lucide-react";
+import { getAvatarUrl } from "@/lib/utils";
 import type { UserProfile } from "@/lib/api/users";
 
 export default function SettingsPage() {
@@ -230,13 +230,16 @@ export default function SettingsPage() {
             <div className="flex flex-col sm:flex-row items-start gap-6">
               <div className="flex flex-col items-center space-y-3">
                 <div className="relative group">
-                  <Avatar className="w-24 h-24 ring-4 ring-white shadow-lg">
+                  <Avatar className="w-24 h-24">
                     <AvatarImage
                       src={getAvatarUrl(user.avatarUrl)}
                       alt="프로필"
                     />
-                    <AvatarFallback className="text-xl font-semibold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                      {getAvatarFallback(user)}
+                    <AvatarFallback>
+                      <User
+                        className=" text-black"
+                        style={{ width: "50%", height: "50%" }}
+                      />
                     </AvatarFallback>
                   </Avatar>
                 </div>
